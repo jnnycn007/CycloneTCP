@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -123,9 +123,12 @@ error_t pic32cxEthInit(NetInterface *interface)
    //Save underlying network interface
    nicDriverInterface = interface;
 
+#if defined(__PIC32CX2051BZ62132__) || defined(__PIC32CX2051BZ62132__)
+#else
    //Enable GMAC bus clocks (CLK_GMAC_APB and CLK_GMAC_AHB)
    MCLK_REGS->MCLK_APBCMASK |= MCLK_APBCMASK_GMAC_Msk;
    MCLK_REGS->MCLK_AHBMASK |= MCLK_AHBMASK_GMAC_Msk;
+#endif
 
    //Disable transmit and receive circuits
    GMAC_REGS->GMAC_NCR = 0;

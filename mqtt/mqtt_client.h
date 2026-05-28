@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _MQTT_CLIENT_H
@@ -163,11 +163,12 @@ typedef enum
    MQTT_CLIENT_STATE_CONNECTED           = 2,
    MQTT_CLIENT_STATE_IDLE                = 3,
    MQTT_CLIENT_STATE_SENDING_PACKET      = 4,
-   MQTT_CLIENT_STATE_PACKET_SENT         = 5,
-   MQTT_CLIENT_STATE_WAITING_PACKET      = 6,
-   MQTT_CLIENT_STATE_RECEIVING_PACKET    = 7,
-   MQTT_CLIENT_STATE_PACKET_RECEIVED     = 8,
-   MQTT_CLIENT_STATE_DISCONNECTING       = 9
+   MQTT_CLIENT_STATE_SENDING_PAYLOAD     = 5,
+   MQTT_CLIENT_STATE_PACKET_SENT         = 6,
+   MQTT_CLIENT_STATE_WAITING_PACKET      = 7,
+   MQTT_CLIENT_STATE_RECEIVING_PACKET    = 8,
+   MQTT_CLIENT_STATE_PACKET_RECEIVED     = 9,
+   MQTT_CLIENT_STATE_DISCONNECTING       = 10
 } MqttClientState;
 
 
@@ -339,9 +340,32 @@ struct _MqttClientContext
    MqttPacketType packetType;               ///<Control packet type
    uint16_t packetId;                       ///<Packet identifier
    size_t remainingLen;                     ///<Length of the variable header and payload
+   size_t payloadPos;                       ///<Current position within the payload
+   size_t fragPos;                          ///<Current position within the current fragment
    MQTT_CLIENT_PRIVATE_CONTEXT              ///<Application specific context
 };
 
+
+/**
+ * @brief PUBLISH packet parameters
+ **/
+
+typedef struct
+{
+   bool_t dup;
+   MqttQosLevel qos;
+   bool_t retain;
+   const char_t *topicName;
+   const void *payload;
+   size_t payloadLen;
+   size_t fragOffset;
+   size_t fragLen;
+   uint16_t *packetId;
+} MqttPublishInfo;
+
+
+//MQTT client related constants
+extern const MqttPublishInfo MQTT_DEFAULT_PUBLISH_INFO;
 
 //MQTT client related functions
 error_t mqttClientInit(MqttClientContext *context);
@@ -391,10 +415,9 @@ error_t mqttClientSetPacketId(MqttClientContext *context, uint16_t packetId);
 error_t mqttClientPublish(MqttClientContext *context, const char_t *topic,
    const void *message, size_t length, MqttQosLevel qos, bool_t retain,
    uint16_t *packetId);
-
-error_t mqttClientPublishEx(MqttClientContext *context, const char_t *topic,
-   const void *message, size_t length, bool_t dup, MqttQosLevel qos,
-   bool_t retain, uint16_t *packetId);
+   
+error_t mqttClientPublishEx(MqttClientContext *context,
+   MqttPublishInfo *publishInfo);
 
 error_t mqttClientSubscribe(MqttClientContext *context, const char_t *topic,
    MqttQosLevel qos, uint16_t *packetId);

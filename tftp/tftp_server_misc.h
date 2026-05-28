@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _TFTP_SERVER_MISC_H
@@ -44,8 +44,11 @@ extern "C" {
 void tftpServerTick(TftpServerContext *context);
 
 TftpClientConnection *tftpServerOpenConnection(TftpServerContext *context,
-   const IpAddr *clientIpAddr, uint16_t clientPort);
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort);
 
+TftpClientConnection *tftpServerFindConnection(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort);
+   
 void tftpServerCloseConnection(TftpClientConnection *connection);
 
 void tftpServerAcceptRequest(TftpServerContext *context);
@@ -53,11 +56,13 @@ void tftpServerAcceptRequest(TftpServerContext *context);
 void tftpServerProcessPacket(TftpServerContext *context,
    TftpClientConnection *connection);
 
-void tftpServerProcessRrqPacket(TftpServerContext *context, const IpAddr *clientIpAddr,
-   uint16_t clientPort, const TftpRrqPacket *rrqPacket, size_t length);
+void tftpServerProcessRrqPacket(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort,
+   const TftpRrqPacket *rrqPacket, size_t length);
 
-void tftpServerProcessWrqPacket(TftpServerContext *context, const IpAddr *clientIpAddr,
-   uint16_t clientPort, const TftpWrqPacket *wrqPacket, size_t length);
+void tftpServerProcessWrqPacket(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort,
+   const TftpWrqPacket *wrqPacket, size_t length);
 
 void tftpServerProcessDataPacket(TftpClientConnection *connection,
    const TftpDataPacket *dataPacket, size_t length);

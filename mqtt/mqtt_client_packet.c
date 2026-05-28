@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -201,46 +201,55 @@ error_t mqttClientProcessPacket(MqttClientContext *context)
       //Process incoming CONNACK packet
       error = mqttClientProcessConnAck(context, dup, qos, retain, remainingLen);
       break;
+
    //PUBLISH packet received?
    case MQTT_PACKET_TYPE_PUBLISH:
       //Process incoming PUBLISH packet
       error = mqttClientProcessPublish(context, dup, qos, retain, remainingLen);
       break;
+
    //PUBACK packet received?
    case MQTT_PACKET_TYPE_PUBACK:
       //Process incoming PUBACK packet
       error = mqttClientProcessPubAck(context, dup, qos, retain, remainingLen);
       break;
+
    //PUBREC packet received?
    case MQTT_PACKET_TYPE_PUBREC:
       //Process incoming PUBREC packet
       error = mqttClientProcessPubRec(context, dup, qos, retain, remainingLen);
       break;
+
    //PUBREL packet received?
    case MQTT_PACKET_TYPE_PUBREL:
       //Process incoming PUBREL packet
       error = mqttClientProcessPubRel(context, dup, qos, retain, remainingLen);
       break;
+
    //PUBCOMP packet received?
    case MQTT_PACKET_TYPE_PUBCOMP:
       //Process incoming PUBCOMP packet
       error = mqttClientProcessPubComp(context, dup, qos, retain, remainingLen);
       break;
+
    //SUBACK packet received?
    case MQTT_PACKET_TYPE_SUBACK:
       //Process incoming SUBACK packet
       error = mqttClientProcessSubAck(context, dup, qos, retain, remainingLen);
       break;
+
    //UNSUBACK packet received?
    case MQTT_PACKET_TYPE_UNSUBACK:
       //Process incoming UNSUBACK packet
       error = mqttClientProcessUnsubAck(context, dup, qos, retain, remainingLen);
       break;
+
    //PINGRESP packet received?
    case MQTT_PACKET_TYPE_PINGRESP:
       //Process incoming PINGRESP packet
       error = mqttClientProcessPingResp(context, dup, qos, retain, remainingLen);
       break;
+
    //Unknown packet received?
    default:
       //Report an error
@@ -948,18 +957,12 @@ error_t mqttClientFormatConnect(MqttClientContext *context,
 /**
  * @brief Format PUBLISH packet
  * @param[in] context Pointer to the MQTT client context
- * @param[in] topic Topic name
- * @param[in] message Message payload
- * @param[in] length Length of the message payload
- * @param[in] dup DUP flag
- * @param[in] qos QoS level to be used when publishing the message
- * @param[in] retain This flag specifies if the message is to be retained
+ * @param[in] publishInfo PUBLISH packet parameters
  * @return Error code
  **/
 
-error_t mqttClientFormatPublish(MqttClientContext *context, const char_t *topic,
-   const void *message, size_t length, bool_t dup, MqttQosLevel qos,
-   bool_t retain)
+error_t mqttClientFormatPublish(MqttClientContext *context,
+   MqttPublishInfo *publishInfo)
 {
    error_t error;
    size_t n;
@@ -970,14 +973,14 @@ error_t mqttClientFormatPublish(MqttClientContext *context, const char_t *topic,
    //The Topic Name must be present as the first field in the PUBLISH
    //packet variable header
    error = mqttSerializeString(context->buffer, MQTT_CLIENT_BUFFER_SIZE,
-      &n, topic, osStrlen(topic));
+      &n, publishInfo->topicName, osStrlen(publishInfo->topicName));
 
    //Failed to serialize Topic Name?
    if(error)
       return error;
 
    //Check QoS level
-   if(qos != MQTT_QOS_LEVEL_0)
+   if(publishInfo->qos != MQTT_QOS_LEVEL_0)
    {
       //Each time a client sends a new PUBLISH packet it must assign it
       //a currently unused packet identifier
@@ -1000,27 +1003,58 @@ error_t mqttClientFormatPublish(MqttClientContext *context, const char_t *topic,
          return error;
    }
 
-   //The payload contains the Application Message that is being published
-   error = mqttSerializeData(context->buffer, MQTT_CLIENT_BUFFER_SIZE,
-      &n, message, length);
+   //Check if the payload fits in the buffer
+   if(publishInfo->fragLen == 0 &&
+      publishInfo->payloadLen <= (MQTT_CLIENT_BUFFER_SIZE - n))
+   {
+      //The payload contains the Application Message that is being published
+      error = mqttSerializeData(context->buffer, MQTT_CLIENT_BUFFER_SIZE,
+         &n, publishInfo->payload, publishInfo->payloadLen);
 
-   //Failed to serialize Application Message?
-   if(error)
-      return error;
+      //Failed to serialize Application Message?
+      if(error)
+         return error;
 
-   //Calculate the length of the variable header and the payload
-   context->packetLen = n - MQTT_MAX_HEADER_SIZE;
+      //Calculate the length of the variable header and the payload
+      context->packetLen = n - MQTT_MAX_HEADER_SIZE;
 
-   //The fixed header will be encoded in reverse order
-   n = MQTT_MAX_HEADER_SIZE;
+      //The fixed header will be encoded in reverse order
+      n = MQTT_MAX_HEADER_SIZE;
 
-   //Prepend the variable header and the payload with the fixed header
-   error = mqttSerializeHeader(context->buffer, &n, MQTT_PACKET_TYPE_PUBLISH,
-      dup, qos, retain, context->packetLen);
+      //Prepend the variable header and the payload with the fixed header
+      error = mqttSerializeHeader(context->buffer, &n, MQTT_PACKET_TYPE_PUBLISH,
+         publishInfo->dup, publishInfo->qos, publishInfo->retain,
+         context->packetLen);
 
-   //Failed to serialize fixed header?
-   if(error)
-      return error;
+      //Failed to serialize fixed header?
+      if(error)
+         return error;
+
+      //The buffer contains both the header and the payload
+      context->payloadPos = publishInfo->payloadLen;
+      context->fragPos = 0;
+   }
+   else
+   {
+      //Calculate the length of the variable header
+      context->packetLen = n - MQTT_MAX_HEADER_SIZE;
+
+      //The fixed header will be encoded in reverse order
+      n = MQTT_MAX_HEADER_SIZE;
+
+      //Prepend the variable header and the payload with the fixed header
+      error = mqttSerializeHeader(context->buffer, &n, MQTT_PACKET_TYPE_PUBLISH,
+         publishInfo->dup, publishInfo->qos, publishInfo->retain,
+         context->packetLen + publishInfo->payloadLen);
+
+      //Failed to serialize fixed header?
+      if(error)
+         return error;
+
+      //The payload will be sent separately
+      context->payloadPos = 0;
+      context->fragPos = 0;
+   }
 
    //Point to the first byte of the MQTT packet
    context->packet = context->buffer + n;

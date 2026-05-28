@@ -1,6 +1,6 @@
 /**
- * @file mcxn947_eth_driver.h
- * @brief NXP MCX N947 Ethernet MAC driver
+ * @file mcxn54_eth_driver.h
+ * @brief NXP MCX N54 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,62 +25,62 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
-#ifndef _MCXN947_ETH_DRIVER_H
-#define _MCXN947_ETH_DRIVER_H
+#ifndef _MCXN54_ETH_DRIVER_H
+#define _MCXN54_ETH_DRIVER_H
 
 //Dependencies
 #include "core/nic.h"
 
 //Number of TX buffers
-#ifndef MCXN947_ETH_TX_BUFFER_COUNT
-   #define MCXN947_ETH_TX_BUFFER_COUNT 3
-#elif (MCXN947_ETH_TX_BUFFER_COUNT < 1)
-   #error MCXN947_ETH_TX_BUFFER_COUNT parameter is not valid
+#ifndef MCXN54_ETH_TX_BUFFER_COUNT
+   #define MCXN54_ETH_TX_BUFFER_COUNT 3
+#elif (MCXN54_ETH_TX_BUFFER_COUNT < 1)
+   #error MCXN54_ETH_TX_BUFFER_COUNT parameter is not valid
 #endif
 
 //TX buffer size
-#ifndef MCXN947_ETH_TX_BUFFER_SIZE
-   #define MCXN947_ETH_TX_BUFFER_SIZE 1536
-#elif (MCXN947_ETH_TX_BUFFER_SIZE != 1536)
-   #error MCXN947_ETH_TX_BUFFER_SIZE parameter is not valid
+#ifndef MCXN54_ETH_TX_BUFFER_SIZE
+   #define MCXN54_ETH_TX_BUFFER_SIZE 1536
+#elif (MCXN54_ETH_TX_BUFFER_SIZE != 1536)
+   #error MCXN54_ETH_TX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Number of RX buffers
-#ifndef MCXN947_ETH_RX_BUFFER_COUNT
-   #define MCXN947_ETH_RX_BUFFER_COUNT 6
-#elif (MCXN947_ETH_RX_BUFFER_COUNT < 1)
-   #error MCXN947_ETH_RX_BUFFER_COUNT parameter is not valid
+#ifndef MCXN54_ETH_RX_BUFFER_COUNT
+   #define MCXN54_ETH_RX_BUFFER_COUNT 6
+#elif (MCXN54_ETH_RX_BUFFER_COUNT < 1)
+   #error MCXN54_ETH_RX_BUFFER_COUNT parameter is not valid
 #endif
 
 //RX buffer size
-#ifndef MCXN947_ETH_RX_BUFFER_SIZE
-   #define MCXN947_ETH_RX_BUFFER_SIZE 1536
-#elif (MCXN947_ETH_RX_BUFFER_SIZE != 1536)
-   #error MCXN947_ETH_RX_BUFFER_SIZE parameter is not valid
+#ifndef MCXN54_ETH_RX_BUFFER_SIZE
+   #define MCXN54_ETH_RX_BUFFER_SIZE 1536
+#elif (MCXN54_ETH_RX_BUFFER_SIZE != 1536)
+   #error MCXN54_ETH_RX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Interrupt priority grouping
-#ifndef MCXN947_ETH_IRQ_PRIORITY_GROUPING
-   #define MCXN947_ETH_IRQ_PRIORITY_GROUPING 4
-#elif (MCXN947_ETH_IRQ_PRIORITY_GROUPING < 0)
-   #error MCXN947_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
+#ifndef MCXN54_ETH_IRQ_PRIORITY_GROUPING
+   #define MCXN54_ETH_IRQ_PRIORITY_GROUPING 4
+#elif (MCXN54_ETH_IRQ_PRIORITY_GROUPING < 0)
+   #error MCXN54_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
 #endif
 
 //Ethernet interrupt group priority
-#ifndef MCXN947_ETH_IRQ_GROUP_PRIORITY
-   #define MCXN947_ETH_IRQ_GROUP_PRIORITY 6
-#elif (MCXN947_ETH_IRQ_GROUP_PRIORITY < 0)
-   #error MCXN947_ETH_IRQ_GROUP_PRIORITY parameter is not valid
+#ifndef MCXN54_ETH_IRQ_GROUP_PRIORITY
+   #define MCXN54_ETH_IRQ_GROUP_PRIORITY 6
+#elif (MCXN54_ETH_IRQ_GROUP_PRIORITY < 0)
+   #error MCXN54_ETH_IRQ_GROUP_PRIORITY parameter is not valid
 #endif
 
 //Ethernet interrupt subpriority
-#ifndef MCXN947_ETH_IRQ_SUB_PRIORITY
-   #define MCXN947_ETH_IRQ_SUB_PRIORITY 0
-#elif (MCXN947_ETH_IRQ_SUB_PRIORITY < 0)
-   #error MCXN947_ETH_IRQ_SUB_PRIORITY parameter is not valid
+#ifndef MCXN54_ETH_IRQ_SUB_PRIORITY
+   #define MCXN54_ETH_IRQ_SUB_PRIORITY 0
+#elif (MCXN54_ETH_IRQ_SUB_PRIORITY < 0)
+   #error MCXN54_ETH_IRQ_SUB_PRIORITY parameter is not valid
 #endif
 
 //Transmit normal descriptor (read format)
@@ -180,7 +180,7 @@ typedef struct
    uint32_t tdes1;
    uint32_t tdes2;
    uint32_t tdes3;
-} Mcxn947TxDmaDesc;
+} Mcxn54TxDmaDesc;
 
 
 /**
@@ -193,35 +193,35 @@ typedef struct
    uint32_t rdes1;
    uint32_t rdes2;
    uint32_t rdes3;
-} Mcxn947RxDmaDesc;
+} Mcxn54RxDmaDesc;
 
 
-//MCX N947 Ethernet MAC driver
-extern const NicDriver mcxn947EthDriver;
+//MCX N54 Ethernet MAC driver
+extern const NicDriver mcxn54EthDriver;
 
-//MCX N947 Ethernet MAC related functions
-error_t mcxn947EthInit(NetInterface *interface);
-void mcxn947EthInitGpio(NetInterface *interface);
-void mcxn947EthInitDmaDesc(NetInterface *interface);
+//MCX N54 Ethernet MAC related functions
+error_t mcxn54EthInit(NetInterface *interface);
+void mcxn54EthInitGpio(NetInterface *interface);
+void mcxn54EthInitDmaDesc(NetInterface *interface);
 
-void mcxn947EthTick(NetInterface *interface);
+void mcxn54EthTick(NetInterface *interface);
 
-void mcxn947EthEnableIrq(NetInterface *interface);
-void mcxn947EthDisableIrq(NetInterface *interface);
-void mcxn947EthEventHandler(NetInterface *interface);
+void mcxn54EthEnableIrq(NetInterface *interface);
+void mcxn54EthDisableIrq(NetInterface *interface);
+void mcxn54EthEventHandler(NetInterface *interface);
 
-error_t mcxn947EthSendPacket(NetInterface *interface,
+error_t mcxn54EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary);
 
-error_t mcxn947EthReceivePacket(NetInterface *interface);
+error_t mcxn54EthReceivePacket(NetInterface *interface);
 
-error_t mcxn947EthUpdateMacAddrFilter(NetInterface *interface);
-error_t mcxn947EthUpdateMacConfig(NetInterface *interface);
+error_t mcxn54EthUpdateMacAddrFilter(NetInterface *interface);
+error_t mcxn54EthUpdateMacConfig(NetInterface *interface);
 
-void mcxn947EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxn54EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data);
 
-uint16_t mcxn947EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxn54EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr);
 
 //C++ guard

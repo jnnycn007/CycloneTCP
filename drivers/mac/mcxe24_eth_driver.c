@@ -1,6 +1,6 @@
 /**
- * @file mcxe247_eth_driver.c
- * @brief NXP MCX E247 Ethernet MAC driver
+ * @file mcxe24_eth_driver.c
+ * @brief NXP MCX E24 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -35,7 +35,7 @@
 #include "fsl_device_registers.h"
 #include "fsl_clock.h"
 #include "core/net.h"
-#include "drivers/mac/mcxe247_eth_driver.h"
+#include "drivers/mac/mcxe24_eth_driver.h"
 #include "debug.h"
 
 //Underlying network interface
@@ -46,31 +46,31 @@ static NetInterface *nicDriverInterface;
 
 //TX buffer
 #pragma data_alignment = 16
-static uint8_t txBuffer[MCXE247_ETH_TX_BUFFER_COUNT][MCXE247_ETH_TX_BUFFER_SIZE];
+static uint8_t txBuffer[MCXE24_ETH_TX_BUFFER_COUNT][MCXE24_ETH_TX_BUFFER_SIZE];
 //RX buffer
 #pragma data_alignment = 16
-static uint8_t rxBuffer[MCXE247_ETH_RX_BUFFER_COUNT][MCXE247_ETH_RX_BUFFER_SIZE];
+static uint8_t rxBuffer[MCXE24_ETH_RX_BUFFER_COUNT][MCXE24_ETH_RX_BUFFER_SIZE];
 //TX buffer descriptors
 #pragma data_alignment = 16
-static uint32_t txBufferDesc[MCXE247_ETH_TX_BUFFER_COUNT][8];
+static uint32_t txBufferDesc[MCXE24_ETH_TX_BUFFER_COUNT][8];
 //RX buffer descriptors
 #pragma data_alignment = 16
-static uint32_t rxBufferDesc[MCXE247_ETH_RX_BUFFER_COUNT][8];
+static uint32_t rxBufferDesc[MCXE24_ETH_RX_BUFFER_COUNT][8];
 
 //ARM or GCC compiler?
 #else
 
 //TX buffer
-static uint8_t txBuffer[MCXE247_ETH_TX_BUFFER_COUNT][MCXE247_ETH_TX_BUFFER_SIZE]
+static uint8_t txBuffer[MCXE24_ETH_TX_BUFFER_COUNT][MCXE24_ETH_TX_BUFFER_SIZE]
    __attribute__((aligned(16)));
 //RX buffer
-static uint8_t rxBuffer[MCXE247_ETH_RX_BUFFER_COUNT][MCXE247_ETH_RX_BUFFER_SIZE]
+static uint8_t rxBuffer[MCXE24_ETH_RX_BUFFER_COUNT][MCXE24_ETH_RX_BUFFER_SIZE]
    __attribute__((aligned(16)));
 //TX buffer descriptors
-static uint32_t txBufferDesc[MCXE247_ETH_TX_BUFFER_COUNT][8]
+static uint32_t txBufferDesc[MCXE24_ETH_TX_BUFFER_COUNT][8]
    __attribute__((aligned(16)));
 //RX buffer descriptors
-static uint32_t rxBufferDesc[MCXE247_ETH_RX_BUFFER_COUNT][8]
+static uint32_t rxBufferDesc[MCXE24_ETH_RX_BUFFER_COUNT][8]
    __attribute__((aligned(16)));
 
 #endif
@@ -82,23 +82,23 @@ static uint_t rxBufferIndex;
 
 
 /**
- * @brief MCX E247 Ethernet MAC driver
+ * @brief MCX E24 Ethernet MAC driver
  **/
 
-const NicDriver mcxe247EthDriver =
+const NicDriver mcxe24EthDriver =
 {
    NIC_TYPE_ETHERNET,
    ETH_MTU,
-   mcxe247EthInit,
-   mcxe247EthTick,
-   mcxe247EthEnableIrq,
-   mcxe247EthDisableIrq,
-   mcxe247EthEventHandler,
-   mcxe247EthSendPacket,
-   mcxe247EthUpdateMacAddrFilter,
-   mcxe247EthUpdateMacConfig,
-   mcxe247EthWritePhyReg,
-   mcxe247EthReadPhyReg,
+   mcxe24EthInit,
+   mcxe24EthTick,
+   mcxe24EthEnableIrq,
+   mcxe24EthDisableIrq,
+   mcxe24EthEventHandler,
+   mcxe24EthSendPacket,
+   mcxe24EthUpdateMacAddrFilter,
+   mcxe24EthUpdateMacConfig,
+   mcxe24EthWritePhyReg,
+   mcxe24EthReadPhyReg,
    TRUE,
    TRUE,
    TRUE,
@@ -107,18 +107,18 @@ const NicDriver mcxe247EthDriver =
 
 
 /**
- * @brief MCX E247 Ethernet MAC initialization
+ * @brief MCX E24 Ethernet MAC initialization
  * @param[in] interface Underlying network interface
  * @return Error code
  **/
 
-error_t mcxe247EthInit(NetInterface *interface)
+error_t mcxe24EthInit(NetInterface *interface)
 {
    error_t error;
    uint32_t value;
 
    //Debug message
-   TRACE_INFO("Initializing MCX E247 Ethernet MAC...\r\n");
+   TRACE_INFO("Initializing MCX E24 Ethernet MAC...\r\n");
 
    //Save underlying network interface
    nicDriverInterface = interface;
@@ -134,7 +134,7 @@ error_t mcxe247EthInit(NetInterface *interface)
    CLOCK_EnableClock(kCLOCK_Enet);
 
    //GPIO configuration
-   mcxe247EthInitGpio(interface);
+   mcxe24EthInitGpio(interface);
 
    //Reset ENET module
    ENET->ECR = ENET_ECR_RESET_MASK;
@@ -144,7 +144,7 @@ error_t mcxe247EthInit(NetInterface *interface)
    }
 
    //Receive control register
-   ENET->RCR = ENET_RCR_MAX_FL(MCXE247_ETH_RX_BUFFER_SIZE) |
+   ENET->RCR = ENET_RCR_MAX_FL(MCXE24_ETH_RX_BUFFER_SIZE) |
       ENET_RCR_RMII_MODE_MASK | ENET_RCR_MII_MODE_MASK;
 
    //Transmit control register
@@ -207,7 +207,7 @@ error_t mcxe247EthInit(NetInterface *interface)
    ENET->MIBC = 0;
 
    //Initialize buffer descriptors
-   mcxe247EthInitBufferDesc(interface);
+   mcxe24EthInitBufferDesc(interface);
 
    //Clear any pending interrupts
    ENET->EIR = 0xFFFFFFFF;
@@ -215,19 +215,19 @@ error_t mcxe247EthInit(NetInterface *interface)
    ENET->EIMR = ENET_EIMR_TXF_MASK | ENET_EIMR_RXF_MASK | ENET_EIMR_EBERR_MASK;
 
    //Set priority grouping (4 bits for pre-emption priority, no bits for subpriority)
-   NVIC_SetPriorityGrouping(MCXE247_ETH_IRQ_PRIORITY_GROUPING);
+   NVIC_SetPriorityGrouping(MCXE24_ETH_IRQ_PRIORITY_GROUPING);
 
    //Configure ENET transmit interrupt priority
-   NVIC_SetPriority(ENET_Transmit_IRQn, NVIC_EncodePriority(MCXE247_ETH_IRQ_PRIORITY_GROUPING,
-      MCXE247_ETH_IRQ_GROUP_PRIORITY, MCXE247_ETH_IRQ_SUB_PRIORITY));
+   NVIC_SetPriority(ENET_Transmit_IRQn, NVIC_EncodePriority(MCXE24_ETH_IRQ_PRIORITY_GROUPING,
+      MCXE24_ETH_IRQ_GROUP_PRIORITY, MCXE24_ETH_IRQ_SUB_PRIORITY));
 
    //Configure ENET receive interrupt priority
-   NVIC_SetPriority(ENET_Receive_IRQn, NVIC_EncodePriority(MCXE247_ETH_IRQ_PRIORITY_GROUPING,
-      MCXE247_ETH_IRQ_GROUP_PRIORITY, MCXE247_ETH_IRQ_SUB_PRIORITY));
+   NVIC_SetPriority(ENET_Receive_IRQn, NVIC_EncodePriority(MCXE24_ETH_IRQ_PRIORITY_GROUPING,
+      MCXE24_ETH_IRQ_GROUP_PRIORITY, MCXE24_ETH_IRQ_SUB_PRIORITY));
 
    //Configure ENET error interrupt priority
-   NVIC_SetPriority(ENET_Error_IRQn, NVIC_EncodePriority(MCXE247_ETH_IRQ_PRIORITY_GROUPING,
-      MCXE247_ETH_IRQ_GROUP_PRIORITY, MCXE247_ETH_IRQ_SUB_PRIORITY));
+   NVIC_SetPriority(ENET_Error_IRQn, NVIC_EncodePriority(MCXE24_ETH_IRQ_PRIORITY_GROUPING,
+      MCXE24_ETH_IRQ_GROUP_PRIORITY, MCXE24_ETH_IRQ_SUB_PRIORITY));
 
    //Enable Ethernet MAC
    ENET->ECR |= ENET_ECR_ETHEREN_MASK;
@@ -247,7 +247,7 @@ error_t mcxe247EthInit(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-__weak_func void mcxe247EthInitGpio(NetInterface *interface)
+__weak_func void mcxe24EthInitGpio(NetInterface *interface)
 {
 //FRDM-MCXE247 evaluation board?
 #if defined(USE_FRDM_MCXE247)
@@ -295,7 +295,7 @@ __weak_func void mcxe247EthInitGpio(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe247EthInitBufferDesc(NetInterface *interface)
+void mcxe24EthInitBufferDesc(NetInterface *interface)
 {
    uint_t i;
    uint32_t address;
@@ -305,7 +305,7 @@ void mcxe247EthInitBufferDesc(NetInterface *interface)
    osMemset(rxBufferDesc, 0, sizeof(rxBufferDesc));
 
    //Initialize TX buffer descriptors
-   for(i = 0; i < MCXE247_ETH_TX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXE24_ETH_TX_BUFFER_COUNT; i++)
    {
       //Calculate the address of the current TX buffer
       address = (uint32_t) txBuffer[i];
@@ -321,7 +321,7 @@ void mcxe247EthInitBufferDesc(NetInterface *interface)
    txBufferIndex = 0;
 
    //Initialize RX buffer descriptors
-   for(i = 0; i < MCXE247_ETH_RX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXE24_ETH_RX_BUFFER_COUNT; i++)
    {
       //Calculate the address of the current RX buffer
       address = (uint32_t) rxBuffer[i];
@@ -343,12 +343,12 @@ void mcxe247EthInitBufferDesc(NetInterface *interface)
    //Start location of the RX descriptor list
    ENET->RDSR = (uint32_t) rxBufferDesc;
    //Maximum receive buffer size
-   ENET->MRBR = MCXE247_ETH_RX_BUFFER_SIZE;
+   ENET->MRBR = MCXE24_ETH_RX_BUFFER_SIZE;
 }
 
 
 /**
- * @brief MCX E247 Ethernet MAC timer handler
+ * @brief MCX E24 Ethernet MAC timer handler
  *
  * This routine is periodically called by the TCP/IP stack to handle periodic
  * operations such as polling the link state
@@ -356,7 +356,7 @@ void mcxe247EthInitBufferDesc(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe247EthTick(NetInterface *interface)
+void mcxe24EthTick(NetInterface *interface)
 {
    //Valid Ethernet PHY or switch driver?
    if(interface->phyDriver != NULL)
@@ -381,7 +381,7 @@ void mcxe247EthTick(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe247EthEnableIrq(NetInterface *interface)
+void mcxe24EthEnableIrq(NetInterface *interface)
 {
    //Enable Ethernet MAC interrupts
    NVIC_EnableIRQ(ENET_Transmit_IRQn);
@@ -411,7 +411,7 @@ void mcxe247EthEnableIrq(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe247EthDisableIrq(NetInterface *interface)
+void mcxe24EthDisableIrq(NetInterface *interface)
 {
    //Disable Ethernet MAC interrupts
    NVIC_DisableIRQ(ENET_Transmit_IRQn);
@@ -535,11 +535,11 @@ void ENET_Error_IRQHandler(void)
 
 
 /**
- * @brief MCX E247 Ethernet MAC event handler
+ * @brief MCX E24 Ethernet MAC event handler
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe247EthEventHandler(NetInterface *interface)
+void mcxe24EthEventHandler(NetInterface *interface)
 {
    error_t error;
    uint32_t status;
@@ -557,7 +557,7 @@ void mcxe247EthEventHandler(NetInterface *interface)
       do
       {
          //Read incoming packet
-         error = mcxe247EthReceivePacket(interface);
+         error = mcxe24EthReceivePacket(interface);
 
          //No more data in the receive buffer?
       } while(error != ERROR_BUFFER_EMPTY);
@@ -572,7 +572,7 @@ void mcxe247EthEventHandler(NetInterface *interface)
       //Disable Ethernet MAC
       ENET->ECR &= ~ENET_ECR_ETHEREN_MASK;
       //Reset buffer descriptors
-      mcxe247EthInitBufferDesc(interface);
+      mcxe24EthInitBufferDesc(interface);
       //Resume normal operation
       ENET->ECR |= ENET_ECR_ETHEREN_MASK;
       //Instruct the DMA to poll the receive descriptor list
@@ -594,7 +594,7 @@ void mcxe247EthEventHandler(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe247EthSendPacket(NetInterface *interface,
+error_t mcxe24EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary)
 {
    size_t length;
@@ -603,7 +603,7 @@ error_t mcxe247EthSendPacket(NetInterface *interface,
    length = netBufferGetLength(buffer) - offset;
 
    //Check the frame length
-   if(length > MCXE247_ETH_TX_BUFFER_SIZE)
+   if(length > MCXE24_ETH_TX_BUFFER_SIZE)
    {
       //The transmitter can accept another packet
       osSetEvent(&interface->nicTxEvent);
@@ -624,7 +624,7 @@ error_t mcxe247EthSendPacket(NetInterface *interface,
    txBufferDesc[txBufferIndex][4] = 0;
 
    //Check current index
-   if(txBufferIndex < (MCXE247_ETH_TX_BUFFER_COUNT - 1))
+   if(txBufferIndex < (MCXE24_ETH_TX_BUFFER_COUNT - 1))
    {
       //Give the ownership of the descriptor to the DMA engine
       txBufferDesc[txBufferIndex][0] = ENET_TBD0_R | ENET_TBD0_L |
@@ -664,7 +664,7 @@ error_t mcxe247EthSendPacket(NetInterface *interface,
  * @return Error code
  **/
 
-error_t mcxe247EthReceivePacket(NetInterface *interface)
+error_t mcxe24EthReceivePacket(NetInterface *interface)
 {
    error_t error;
    size_t n;
@@ -683,7 +683,7 @@ error_t mcxe247EthReceivePacket(NetInterface *interface)
             //Retrieve the length of the frame
             n = rxBufferDesc[rxBufferIndex][0] & ENET_RBD0_DATA_LENGTH;
             //Limit the number of data to read
-            n = MIN(n, MCXE247_ETH_RX_BUFFER_SIZE);
+            n = MIN(n, MCXE24_ETH_RX_BUFFER_SIZE);
 
             //Additional options can be passed to the stack along with the packet
             ancillary = NET_DEFAULT_RX_ANCILLARY;
@@ -710,7 +710,7 @@ error_t mcxe247EthReceivePacket(NetInterface *interface)
       rxBufferDesc[rxBufferIndex][4] = 0;
 
       //Check current index
-      if(rxBufferIndex < (MCXE247_ETH_RX_BUFFER_COUNT - 1))
+      if(rxBufferIndex < (MCXE24_ETH_RX_BUFFER_COUNT - 1))
       {
          //Give the ownership of the descriptor back to the DMA engine
          rxBufferDesc[rxBufferIndex][0] = ENET_RBD0_E;
@@ -745,7 +745,7 @@ error_t mcxe247EthReceivePacket(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe247EthUpdateMacAddrFilter(NetInterface *interface)
+error_t mcxe24EthUpdateMacAddrFilter(NetInterface *interface)
 {
    uint_t i;
    uint_t k;
@@ -789,7 +789,7 @@ error_t mcxe247EthUpdateMacAddrFilter(NetInterface *interface)
       if(entry->refCount > 0)
       {
          //Compute CRC over the current MAC address
-         crc = mcxe247EthCalcCrc(&entry->addr, sizeof(MacAddr));
+         crc = mcxe24EthCalcCrc(&entry->addr, sizeof(MacAddr));
 
          //The upper 6 bits in the CRC register are used to index the
          //contents of the hash table
@@ -834,7 +834,7 @@ error_t mcxe247EthUpdateMacAddrFilter(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe247EthUpdateMacConfig(NetInterface *interface)
+error_t mcxe24EthUpdateMacConfig(NetInterface *interface)
 {
    //Disable Ethernet MAC while modifying configuration registers
    ENET->ECR &= ~ENET_ECR_ETHEREN_MASK;
@@ -868,7 +868,7 @@ error_t mcxe247EthUpdateMacConfig(NetInterface *interface)
    }
 
    //Reset buffer descriptors
-   mcxe247EthInitBufferDesc(interface);
+   mcxe24EthInitBufferDesc(interface);
 
    //Re-enable Ethernet MAC
    ENET->ECR |= ENET_ECR_ETHEREN_MASK;
@@ -888,7 +888,7 @@ error_t mcxe247EthUpdateMacConfig(NetInterface *interface)
  * @param[in] data Register value
  **/
 
-void mcxe247EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxe24EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data)
 {
    uint32_t temp;
@@ -930,7 +930,7 @@ void mcxe247EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
  * @return Register value
  **/
 
-uint16_t mcxe247EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxe24EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr)
 {
    uint16_t data;
@@ -977,7 +977,7 @@ uint16_t mcxe247EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
  * @return Resulting CRC value
  **/
 
-uint32_t mcxe247EthCalcCrc(const void *data, size_t length)
+uint32_t mcxe24EthCalcCrc(const void *data, size_t length)
 {
    uint_t i;
    uint_t j;

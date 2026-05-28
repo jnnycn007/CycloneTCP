@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _TFTP_SERVER_H
@@ -187,8 +187,11 @@ typedef struct
 
 struct _TftpClientConnection
 {
-   TftpServerContext *context;                  ///<TFTP server context
    TftpConnectionState state;                   ///<Connection state
+   TftpServerContext *context;                  ///<TFTP server context
+   NetInterface *interface;                     ///<Underlying network interface
+   IpAddr clientIpAddr;                         ///<Client's IP address
+   uint16_t clientPort;                         ///<Client's port
    Socket *socket;                              ///<Underlying socket
    void *file;                                  ///<File pointer
    uint16_t block;                              ///<Block number

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -153,12 +153,6 @@ error_t mqttSnClientEstablishConnection(MqttSnClientContext *context)
 
       //Perform DTLS handshake
       error = tlsConnect(context->dtlsContext);
-      //Any error to report?
-      if(error)
-         return error;
-
-      //Save DTLS session
-      error = tlsSaveSessionState(context->dtlsContext, &context->dtlsSession);
       //Any error to report?
       if(error)
          return error;
@@ -328,6 +322,33 @@ error_t mqttSnClientReceiveDatagram(MqttSnClientContext *context,
       error = socketReceiveFrom(context->socket, srcIpAddr, srcPort, data,
          size, received, 0);
    }
+
+   //Return status code
+   return error;
+}
+
+
+/**
+ * @brief Save DTLS session
+ * @param[in] context Pointer to the MQTT-SN client context
+ * @return Error code
+ **/
+
+error_t mqttSnClientSaveSession(MqttSnClientContext *context)
+{
+   error_t error;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+#if (MQTT_SN_CLIENT_DTLS_SUPPORT == ENABLED)
+   //DTLS transport protocol?
+   if(context->transportProtocol == MQTT_SN_TRANSPORT_PROTOCOL_DTLS)
+   {
+      //Save DTLS session
+      error = tlsSaveSessionState(context->dtlsContext, &context->dtlsSession);
+   }
+#endif
 
    //Return status code
    return error;

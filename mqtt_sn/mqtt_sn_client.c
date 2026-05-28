@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -571,20 +571,28 @@ error_t mqttSnClientConnect(MqttSnClientContext *context, bool_t cleanSession)
          //Check the type of the received message
          if(context->msgType == MQTT_SN_MSG_TYPE_CONNACK)
          {
-            //If the connection request has not been accepted, the failure reason
-            //is encoded in the return code field of the CONNACK message
-            if(context->returnCode == MQTT_SN_RETURN_CODE_ACCEPTED)
-            {
-               //The connection request has been accepted by the gateway
-               context->state = MQTT_SN_CLIENT_STATE_ACTIVE;
-            }
-            else
-            {
-               //Terminate DTLS connection
-               mqttSnClientShutdownConnection(context);
+            //Save DTLS session
+            error = mqttSnClientSaveSession(context);
 
-               //The connection request has been rejected by the gateway
-               error = ERROR_REQUEST_REJECTED;
+            //Check status code
+            if(!error)
+            {
+               //If the connection request has not been accepted, the failure
+               //reason is encoded in the return code field of the CONNACK
+               //message
+               if(context->returnCode == MQTT_SN_RETURN_CODE_ACCEPTED)
+               {
+                  //The connection request has been accepted by the gateway
+                  context->state = MQTT_SN_CLIENT_STATE_ACTIVE;
+               }
+               else
+               {
+                  //Terminate DTLS connection
+                  mqttSnClientShutdownConnection(context);
+
+                  //The connection request has been rejected by the gateway
+                  error = ERROR_REQUEST_REJECTED;
+               }
             }
          }
          else
@@ -695,7 +703,9 @@ error_t mqttSnClientPublish(MqttSnClientContext *context,
                //The message identifier allows the sender to match a message with
                //its corresponding acknowledgment
                if(!dup)
+               {
                   publishMsgId = mqttSnClientGenerateMessageId(context);
+               }
             }
             else
             {
@@ -723,7 +733,9 @@ error_t mqttSnClientPublish(MqttSnClientContext *context,
             //Restore the message identifier that was used to send the first
             //PUBLISH message
             if(!dup)
+            {
                publishMsgId = context->msgId;
+            }
          }
 
          //Check whether the timeout has elapsed
@@ -780,7 +792,9 @@ error_t mqttSnClientPublish(MqttSnClientContext *context,
             //Restore the message identifier that was used to send the first
             //PUBLISH message
             if(!dup)
+            {
                publishMsgId = context->msgId;
+            }
          }
 
          //Check the type of the received message

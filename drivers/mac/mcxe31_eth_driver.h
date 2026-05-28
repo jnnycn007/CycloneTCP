@@ -1,6 +1,6 @@
 /**
- * @file mcxe31b_eth_driver.h
- * @brief NXP MCX E31B Ethernet MAC driver
+ * @file mcxe31_eth_driver.h
+ * @brief NXP MCX E31 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,67 +25,67 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
-#ifndef _MCXE31B_ETH_DRIVER_H
-#define _MCXE31B_ETH_DRIVER_H
+#ifndef _MCXE31_ETH_DRIVER_H
+#define _MCXE31_ETH_DRIVER_H
 
 //Dependencies
 #include "core/nic.h"
 
 //Number of TX buffers
-#ifndef MCXE31B_ETH_TX_BUFFER_COUNT
-   #define MCXE31B_ETH_TX_BUFFER_COUNT 3
-#elif (MCXE31B_ETH_TX_BUFFER_COUNT < 1)
-   #error MCXE31B_ETH_TX_BUFFER_COUNT parameter is not valid
+#ifndef MCXE31_ETH_TX_BUFFER_COUNT
+   #define MCXE31_ETH_TX_BUFFER_COUNT 3
+#elif (MCXE31_ETH_TX_BUFFER_COUNT < 1)
+   #error MCXE31_ETH_TX_BUFFER_COUNT parameter is not valid
 #endif
 
 //TX buffer size
-#ifndef MCXE31B_ETH_TX_BUFFER_SIZE
-   #define MCXE31B_ETH_TX_BUFFER_SIZE 1536
-#elif (MCXE31B_ETH_TX_BUFFER_SIZE != 1536)
-   #error MCXE31B_ETH_TX_BUFFER_SIZE parameter is not valid
+#ifndef MCXE31_ETH_TX_BUFFER_SIZE
+   #define MCXE31_ETH_TX_BUFFER_SIZE 1536
+#elif (MCXE31_ETH_TX_BUFFER_SIZE != 1536)
+   #error MCXE31_ETH_TX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Number of RX buffers
-#ifndef MCXE31B_ETH_RX_BUFFER_COUNT
-   #define MCXE31B_ETH_RX_BUFFER_COUNT 6
-#elif (MCXE31B_ETH_RX_BUFFER_COUNT < 1)
-   #error MCXE31B_ETH_RX_BUFFER_COUNT parameter is not valid
+#ifndef MCXE31_ETH_RX_BUFFER_COUNT
+   #define MCXE31_ETH_RX_BUFFER_COUNT 6
+#elif (MCXE31_ETH_RX_BUFFER_COUNT < 1)
+   #error MCXE31_ETH_RX_BUFFER_COUNT parameter is not valid
 #endif
 
 //RX buffer size
-#ifndef MCXE31B_ETH_RX_BUFFER_SIZE
-   #define MCXE31B_ETH_RX_BUFFER_SIZE 1536
-#elif (MCXE31B_ETH_RX_BUFFER_SIZE != 1536)
-   #error MCXE31B_ETH_RX_BUFFER_SIZE parameter is not valid
+#ifndef MCXE31_ETH_RX_BUFFER_SIZE
+   #define MCXE31_ETH_RX_BUFFER_SIZE 1536
+#elif (MCXE31_ETH_RX_BUFFER_SIZE != 1536)
+   #error MCXE31_ETH_RX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Interrupt priority grouping
-#ifndef MCXE31B_ETH_IRQ_PRIORITY_GROUPING
-   #define MCXE31B_ETH_IRQ_PRIORITY_GROUPING 3
-#elif (MCXE31B_ETH_IRQ_PRIORITY_GROUPING < 0)
-   #error MCXE31B_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
+#ifndef MCXE31_ETH_IRQ_PRIORITY_GROUPING
+   #define MCXE31_ETH_IRQ_PRIORITY_GROUPING 3
+#elif (MCXE31_ETH_IRQ_PRIORITY_GROUPING < 0)
+   #error MCXE31_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
 #endif
 
 //Ethernet interrupt group priority
-#ifndef MCXE31B_ETH_IRQ_GROUP_PRIORITY
-   #define MCXE31B_ETH_IRQ_GROUP_PRIORITY 12
-#elif (MCXE31B_ETH_IRQ_GROUP_PRIORITY < 0)
-   #error MCXE31B_ETH_IRQ_GROUP_PRIORITY parameter is not valid
+#ifndef MCXE31_ETH_IRQ_GROUP_PRIORITY
+   #define MCXE31_ETH_IRQ_GROUP_PRIORITY 12
+#elif (MCXE31_ETH_IRQ_GROUP_PRIORITY < 0)
+   #error MCXE31_ETH_IRQ_GROUP_PRIORITY parameter is not valid
 #endif
 
 //Ethernet interrupt subpriority
-#ifndef MCXE31B_ETH_IRQ_SUB_PRIORITY
-   #define MCXE31B_ETH_IRQ_SUB_PRIORITY 0
-#elif (MCXE31B_ETH_IRQ_SUB_PRIORITY < 0)
-   #error MCXE31B_ETH_IRQ_SUB_PRIORITY parameter is not valid
+#ifndef MCXE31_ETH_IRQ_SUB_PRIORITY
+   #define MCXE31_ETH_IRQ_SUB_PRIORITY 0
+#elif (MCXE31_ETH_IRQ_SUB_PRIORITY < 0)
+   #error MCXE31_ETH_IRQ_SUB_PRIORITY parameter is not valid
 #endif
 
 //Name of the section where to place DMA buffers
-#ifndef MCXE31B_ETH_RAM_SECTION
-   #define MCXE31B_ETH_RAM_SECTION "NonCacheable"
+#ifndef MCXE31_ETH_RAM_SECTION
+   #define MCXE31_ETH_RAM_SECTION "NonCacheable"
 #endif
 
 //Transmit normal descriptor (read format)
@@ -217,7 +217,7 @@ typedef struct
    uint32_t tdes1;
    uint32_t tdes2;
    uint32_t tdes3;
-} Mcxe31bTxDmaDesc;
+} Mcxe31TxDmaDesc;
 
 
 /**
@@ -230,38 +230,38 @@ typedef struct
    uint32_t rdes1;
    uint32_t rdes2;
    uint32_t rdes3;
-} Mcxe31bRxDmaDesc;
+} Mcxe31RxDmaDesc;
 
 
-//MCX E31B Ethernet MAC driver
-extern const NicDriver mcxe31bEthDriver;
+//MCX E31 Ethernet MAC driver
+extern const NicDriver mcxe31EthDriver;
 
-//MCX E31B Ethernet MAC related functions
-error_t mcxe31bEthInit(NetInterface *interface);
-void mcxe31bEthInitGpio(NetInterface *interface);
-void mcxe31bEthInitDmaDesc(NetInterface *interface);
+//MCX E31 Ethernet MAC related functions
+error_t mcxe31EthInit(NetInterface *interface);
+void mcxe31EthInitGpio(NetInterface *interface);
+void mcxe31EthInitDmaDesc(NetInterface *interface);
 
-void mcxe31bEthTick(NetInterface *interface);
+void mcxe31EthTick(NetInterface *interface);
 
-void mcxe31bEthEnableIrq(NetInterface *interface);
-void mcxe31bEthDisableIrq(NetInterface *interface);
-void mcxe31bEthEventHandler(NetInterface *interface);
+void mcxe31EthEnableIrq(NetInterface *interface);
+void mcxe31EthDisableIrq(NetInterface *interface);
+void mcxe31EthEventHandler(NetInterface *interface);
 
-error_t mcxe31bEthSendPacket(NetInterface *interface,
+error_t mcxe31EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary);
 
-error_t mcxe31bEthReceivePacket(NetInterface *interface);
+error_t mcxe31EthReceivePacket(NetInterface *interface);
 
-error_t mcxe31bEthUpdateMacAddrFilter(NetInterface *interface);
-error_t mcxe31bEthUpdateMacConfig(NetInterface *interface);
+error_t mcxe31EthUpdateMacAddrFilter(NetInterface *interface);
+error_t mcxe31EthUpdateMacConfig(NetInterface *interface);
 
-void mcxe31bEthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxe31EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data);
 
-uint16_t mcxe31bEthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxe31EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr);
 
-uint32_t mcxe31bEthCalcCrc(const void *data, size_t length);
+uint32_t mcxe31EthCalcCrc(const void *data, size_t length);
 
 //C++ guard
 #ifdef __cplusplus

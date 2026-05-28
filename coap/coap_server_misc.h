@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _COAP_SERVER_MISC_H
@@ -43,11 +43,11 @@ extern "C" {
 //CoAP server related functions
 void coapServerTick(CoapServerContext *context);
 
-error_t coapServerProcessRequest(CoapServerContext *context,
+error_t coapServerProcessMessage(CoapServerContext *context,
    const uint8_t *data, size_t length);
 
+error_t coapServerProcessRequest(CoapServerContext *context);
 error_t coapServerRejectRequest(CoapServerContext *context);
-
 error_t coapServerInitResponse(CoapServerContext *context);
 
 error_t coapServerSendResponse(CoapServerContext *context,

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _COAP_SERVER_REQUEST_H
@@ -89,6 +89,9 @@ error_t coapServerSetPayload(CoapServerContext *context, const void *payload,
 
 error_t coapServerWritePayload(CoapServerContext *context, const void *data,
    size_t length);
+
+error_t coapServerSetNotificationType(CoapObserver *observer,
+   CoapMessageType type);
 
 //C++ guard
 #ifdef __cplusplus

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -34,6 +34,7 @@
 //Dependencies
 #include <stdlib.h>
 #include "coap/coap_server.h"
+#include "coap/coap_server_observe.h"
 #include "coap/coap_server_transport.h"
 #include "coap/coap_server_misc.h"
 #include "coap/coap_debug.h"
@@ -63,6 +64,22 @@ void coapServerGetDefaultSettings(CoapServerSettings *settings)
    //CoAP port number
    settings->port = COAP_PORT;
 
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   //DTLS sessions
+   settings->numSessions = 0;
+   settings->sessions = NULL;
+#endif
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   //Observable resources
+   settings->numResources = 0;
+   settings->resources = NULL;
+
+   //Observers
+   settings->numObservers = 0;
+   settings->observers = NULL;
+#endif
+
    //UDP initialization callback
    settings->udpInitCallback = NULL;
 
@@ -73,6 +90,11 @@ void coapServerGetDefaultSettings(CoapServerSettings *settings)
 
    //CoAP request callback function
    settings->requestCallback = NULL;
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   //Observe callback
+   settings->observeCallback = NULL;
+#endif
 }
 
 
@@ -87,6 +109,9 @@ error_t coapServerInit(CoapServerContext *context,
    const CoapServerSettings *settings)
 {
    error_t error;
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED || COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   uint_t i;
+#endif
 
    //Debug message
    TRACE_INFO("Initializing CoAP server...\r\n");
@@ -94,6 +119,19 @@ error_t coapServerInit(CoapServerContext *context,
    //Ensure the parameters are valid
    if(context == NULL || settings == NULL)
       return ERROR_INVALID_PARAMETER;
+
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   if(settings->sessions == NULL && settings->numSessions != 0)
+      return ERROR_INVALID_PARAMETER;
+#endif
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   if(settings->resources == NULL && settings->numResources != 0)
+      return ERROR_INVALID_PARAMETER;
+
+   if(settings->observers == NULL && settings->numObservers != 0)
+      return ERROR_INVALID_PARAMETER;
+#endif
 
    //Initialize status code
    error = NO_ERROR;
@@ -123,17 +161,81 @@ error_t coapServerInit(CoapServerContext *context,
    context->interface = settings->interface;
    context->port = settings->port;
    context->udpInitCallback = settings->udpInitCallback;
-#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
-   context->dtlsInitCallback = settings->dtlsInitCallback;
-#endif
    context->requestCallback = settings->requestCallback;
 
-   //Create an event object to poll the state of the UDP socket
-   if(!osCreateEvent(&context->event))
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   //DTLS sessions
+   context->numSessions = settings->numSessions;
+   context->sessions = settings->sessions;
+
+   //Initialize entries
+   for(i = 0; i < context->numSessions; i++)
    {
-      //Failed to create event
-      error = ERROR_OUT_OF_RESOURCES;
+      osMemset(&context->sessions[i], 0, sizeof(CoapDtlsSession));
    }
+
+   //DTLS initialization callback
+   context->dtlsInitCallback = settings->dtlsInitCallback;
+#endif
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   //Observable resources
+   context->numResources = settings->numResources;
+   context->resources = settings->resources;
+
+   //Initialize entries
+   for(i = 0; i < context->numResources; i++)
+   {
+      osMemset(&context->resources[i], 0, sizeof(CoapResource));
+   }
+
+   //Observers
+   context->numObservers = settings->numObservers;
+   context->observers = settings->observers;
+
+   //Initialize entries
+   for(i = 0; i < context->numObservers; i++)
+   {
+      osMemset(&context->observers[i], 0, sizeof(CoapObserver));
+   }
+
+   //Observe callback
+   context->observeCallback = settings->observeCallback;
+
+   //It is strongly recommended that the initial value of the message ID be
+   //randomized (refer to RFC 7252, section 4.4)
+   context->mid = (uint16_t) netGetRand(context->netContext);
+#endif
+
+   //Start of exception handling block
+   do
+   {
+      //Create a mutex to prevent simultaneous access to the context
+      if(!osCreateMutex(&context->mutex))
+      {
+         //Failed to create mutex
+         error = ERROR_OUT_OF_RESOURCES;
+         break;
+      }
+
+      //Create an event object to poll the state of the UDP socket
+      if(!osCreateEvent(&context->event))
+      {
+         //Failed to create event
+         error = ERROR_OUT_OF_RESOURCES;
+         break;
+      }
+
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED && TLS_TICKET_SUPPORT == ENABLED)
+      //Initialize ticket encryption context
+      error = tlsInitTicketContext(&context->dtlsTicketContext);
+      //Any error to report?
+      if(error)
+         break;
+#endif
+
+      //End of exception handling block
+   } while(0);
 
    //Check status code
    if(error)
@@ -318,10 +420,10 @@ error_t coapServerStop(CoapServerContext *context)
 
 #if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
       //Loop through DTLS sessions
-      for(i = 0; i < COAP_SERVER_MAX_SESSIONS; i++)
+      for(i = 0; i < context->numSessions; i++)
       {
          //Release DTLS session
-         coapServerDeleteSession(&context->session[i]);
+         coapServerDeleteSession(&context->sessions[i]);
       }
 #endif
 
@@ -336,6 +438,236 @@ error_t coapServerStop(CoapServerContext *context)
 
 
 /**
+ * @brief Create a new observable resource
+ * @param[in] context Pointer to the CoAP server context
+ * @param[in] uri NULL-terminated string containing the path to the resource
+ * @return Error code
+ **/
+
+error_t coapServerCreateResource(CoapServerContext *context, const char_t *uri)
+{
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   error_t error;
+   uint_t i;
+   CoapResource *resource;
+
+   //Check parameters
+   if(context == NULL || uri == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   //Check the length of the URI
+   if(osStrlen(uri) > COAP_SERVER_MAX_URI_LEN)
+      return ERROR_INVALID_LENGTH;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+   //Acquire exclusive access to the CoAP server context
+   osAcquireMutex(&context->mutex);
+
+   //Search the list of resources for a matching URI
+   resource = coapServerFindResource(context, uri);
+
+   //If the resource does not exist, then create a new entry
+   if(resource == NULL)
+   {
+      //Loop through the list of resources
+      for(i = 0; i < context->numResources; i++)
+      {
+         //Check whether the entry is available
+         if(context->resources[i].uri[0] == '\0')
+         {
+            resource = &context->resources[i];
+            break;
+         }
+      }
+   }
+
+   //Valid entry
+   if(resource != NULL)
+   {
+      //Save the full request URI
+      osStrcpy(resource->uri, uri);
+      //Initialize resource state
+      resource->dataLen = 0;
+
+      //The sequence number may start at any value (refer to RFC 7641,
+      //section 4.4)
+      resource->seqNum = netGetRand(context->netContext) & 0x00FFFFFF;
+   }
+   else
+   {
+      //A new entry cannot be created
+      error = ERROR_OUT_OF_RESOURCES;
+   }
+
+   //Release exclusive access to the CoAP server context
+   osReleaseMutex(&context->mutex);
+
+   //Return status code
+   return error;
+#else
+   //Not implemented
+   return ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+
+/**
+ * @brief Update the state of an observable resource
+ * @param[in] context Pointer to the CoAP server context
+ * @param[in] uri NULL-terminated string containing the path to the resource
+ * @param[in] data New resource state
+ * @param[in] length Length of the resource state
+ * @return Error code
+ **/
+
+error_t coapServerUpdateResource(CoapServerContext *context, const char_t *uri,
+   const void *data, size_t length)
+{
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   error_t error;
+   uint_t i;
+   CoapResource *resource;
+   CoapObserver *observer;
+
+   //Check parameters
+   if(context == NULL || uri == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   //Check the length of the resource state
+   if(length > COAP_SERVER_MAX_OBS_RESOURCE_SIZE)
+      return ERROR_INVALID_LENGTH;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+   //Acquire exclusive access to the CoAP server context
+   osAcquireMutex(&context->mutex);
+
+   //Search the list of resources for a matching URI
+   resource = coapServerFindResource(context, uri);
+
+   //Matching resource found?
+   if(resource != NULL)
+   {
+      //Save the new resource state
+      osMemcpy(resource->data, data, length);
+      //Update the length of the resource state
+      resource->dataLen = length;
+
+      //An implementation can store a 24-bit unsigned integer variable per
+      //resource and increment this variable each time the resource undergoes
+      //a change of state (refer to RFC 7641, section 4.4)
+      resource->seqNum = (resource->seqNum + 1) & 0x00FFFFFF;
+
+      //Loop through the list of registered observers
+      for(i = 0; i < context->numObservers; i++)
+      {
+         //Point to the current entry
+         observer = &context->observers[i];
+
+         //Matching entry?
+         if(observer->resource == resource)
+         {
+            //The resource state has changed
+            observer->changed = TRUE;
+         }
+      }
+
+      //Whenever the state of a resource changes, the server notifies each
+      //client in the list of observers of the resource
+      osSetEvent(&context->event);
+   }
+   else
+   {
+      //The target resource does not exist
+      error = ERROR_NOT_FOUND;
+   }
+
+   //Release exclusive access to the CoAP server context
+   osReleaseMutex(&context->mutex);
+
+   //Return status code
+   return error;
+#else
+   //Not implemented
+   return ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+
+/**
+ * @brief Delete an observable resource
+ * @param[in] context Pointer to the CoAP server context
+ * @param[in] uri NULL-terminated string containing the path to the resource
+ * @return Error code
+ **/
+
+error_t coapServerDeleteResource(CoapServerContext *context, const char_t *uri)
+{
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   error_t error;
+   uint_t i;
+   CoapResource *resource;
+   CoapObserver *observer;
+
+   //Check parameters
+   if(context == NULL || uri == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+   //Acquire exclusive access to the CoAP server context
+   osAcquireMutex(&context->mutex);
+
+   //Search the list of resources for a matching URI
+   resource = coapServerFindResource(context, uri);
+
+   //Matching resource found?
+   if(resource != NULL)
+   {
+      //Loop through the list of registered observers
+      for(i = 0; i < context->numObservers; i++)
+      {
+         //Point to the current entry
+         observer = &context->observers[i];
+
+         //Matching entry?
+         if(observer->resource == resource)
+         {
+            //Remove the client's entry from the list of observers of the
+            //resource
+            observer->resource = NULL;
+
+            //The resource state has changed
+            observer->changed = TRUE;
+         }
+      }
+
+      //The resource is deleted
+      osMemset(resource, 0, sizeof(CoapResource));
+   }
+   else
+   {
+      //The target resource does not exist
+      error = ERROR_NOT_FOUND;
+   }
+
+   //Release exclusive access to the CoAP server context
+   osReleaseMutex(&context->mutex);
+
+   //Return status code
+   return error;
+#else
+   //Not implemented
+   return ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+
+/**
  * @brief CoAP server task
  * @param[in] context Pointer to the CoAP server context
  **/
@@ -343,6 +675,7 @@ error_t coapServerStop(CoapServerContext *context)
 void coapServerTask(CoapServerContext *context)
 {
    error_t error;
+   SocketMsg msg;
    SocketEventDesc eventDesc;
 
 #if (NET_RTOS_SUPPORT == ENABLED)
@@ -375,19 +708,35 @@ void coapServerTask(CoapServerContext *context)
       //Any datagram received?
       if(eventDesc.eventFlags != 0)
       {
+         //Point to the receive buffer
+         msg = SOCKET_DEFAULT_MSG;
+         msg.data = context->buffer;
+         msg.size = COAP_SERVER_BUFFER_SIZE;
+
          //Receive incoming datagram
-         error = socketReceiveEx(context->socket, &context->clientIpAddr,
-            &context->clientPort, &context->serverIpAddr, context->buffer,
-            COAP_SERVER_BUFFER_SIZE, &context->bufferLen, 0);
+         error = socketReceiveMsg(context->socket, &msg, 0);
 
          //Check status code
          if(!error)
          {
             //An endpoint must be prepared to receive multicast messages but may
-            //ignore them if multicast service discovery is not desired
-            if(!ipIsMulticastAddr(&context->serverIpAddr))
+            //ignore them if multicast service discovery is not desired (refer
+            //to RFC 7252, section 8)
+            if(!ipIsMulticastAddr(&msg.destIpAddr))
             {
-   #if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+               //Retrieve the length of the datagram
+               context->bufferLen = msg.length;
+
+               //Get the source and destination IP addresses
+               context->localInterface = msg.interface;
+               context->localIpAddr = msg.destIpAddr;
+               context->remoteIpAddr = msg.srcIpAddr;
+               context->remotePort = msg.srcPort;
+
+               //Acquire exclusive access to the CoAP server context
+               osAcquireMutex(&context->mutex);
+
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
                //DTLS-secured communication?
                if(context->dtlsInitCallback != NULL)
                {
@@ -395,18 +744,25 @@ void coapServerTask(CoapServerContext *context)
                   error = coapServerDemultiplexSession(context);
                }
                else
-   #endif
+#endif
                {
                   //Process the received CoAP message
-                  error = coapServerProcessRequest(context, context->buffer,
+                  error = coapServerProcessMessage(context, context->buffer,
                      context->bufferLen);
                }
+
+               //Release exclusive access to the CoAP server context
+               osReleaseMutex(&context->mutex);
             }
          }
       }
 
+      //Acquire exclusive access to the CoAP server context
+      osAcquireMutex(&context->mutex);
       //Handle periodic operations
       coapServerTick(context);
+      //Release exclusive access to the CoAP server context
+      osReleaseMutex(&context->mutex);
 #if (NET_RTOS_SUPPORT == ENABLED)
    }
 #endif
@@ -423,8 +779,14 @@ void coapServerDeinit(CoapServerContext *context)
    //Make sure the CoAP server context is valid
    if(context != NULL)
    {
-      //Free previously allocated resources
+      //Release previously allocated resources
+      osDeleteMutex(&context->mutex);
       osDeleteEvent(&context->event);
+
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED && TLS_TICKET_SUPPORT == ENABLED)
+      //Release ticket encryption context
+      tlsFreeTicketContext(&context->dtlsTicketContext);
+#endif
 
       //Clear CoAP server context
       osMemset(context, 0, sizeof(CoapServerContext));

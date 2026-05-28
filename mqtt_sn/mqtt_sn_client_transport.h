@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _MQTT_SN_CLIENT_TRANSPORT_H
@@ -56,6 +56,8 @@ error_t mqttSnClientSendDatagram(MqttSnClientContext *context,
 error_t mqttSnClientReceiveDatagram(MqttSnClientContext *context,
    IpAddr *srcIpAddr, uint16_t *srcPort, void *data, size_t size,
    size_t *received, systime_t timeout);
+
+error_t mqttSnClientSaveSession(MqttSnClientContext *context);
 
 //C++ guard
 #ifdef __cplusplus

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -162,20 +162,8 @@ error_t smtpClientOpenSecureConnection(SmtpClientContext *context)
 error_t smtpClientEstablishSecureConnection(SmtpClientContext *context)
 {
 #if (SMTP_CLIENT_TLS_SUPPORT == ENABLED)
-   error_t error;
-
    //Establish TLS connection
-   error = tlsConnect(context->tlsContext);
-
-   //Check status code
-   if(!error)
-   {
-      //Save TLS session
-      error = tlsSaveSessionState(context->tlsContext, &context->tlsSession);
-   }
-
-   //Return status code
-   return error;
+   return tlsConnect(context->tlsContext);
 #else
    //Not implemented
    return ERROR_NOT_IMPLEMENTED;
@@ -308,6 +296,33 @@ error_t smtpClientReceiveData(SmtpClientContext *context, void *data,
       //Receive data
       error = socketReceive(context->socket, data, size, received, flags);
    }
+
+   //Return status code
+   return error;
+}
+
+
+/**
+ * @brief Save TLS session
+ * @param[in] context Pointer to the SMTP client context
+ * @return Error code
+ **/
+
+error_t smtpClientSaveSession(SmtpClientContext *context)
+{
+   error_t error;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+#if (SMTP_CLIENT_TLS_SUPPORT == ENABLED)
+   //TLS-secured connection?
+   if(context->tlsContext != NULL)
+   {
+      //Save TLS session
+      error = tlsSaveSessionState(context->tlsContext, &context->tlsSession);
+   }
+#endif
 
    //Return status code
    return error;

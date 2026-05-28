@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _COAP_SERVER_H
@@ -51,18 +51,18 @@
    #error COAP_SERVER_DTLS_SUPPORT parameter is not valid
 #endif
 
+//Observable resource support
+#ifndef COAP_SERVER_OBSERVE_SUPPORT
+   #define COAP_SERVER_OBSERVE_SUPPORT DISABLED
+#elif (COAP_SERVER_OBSERVE_SUPPORT != ENABLED && COAP_SERVER_OBSERVE_SUPPORT != DISABLED)
+   #error COAP_SERVER_OBSERVE_SUPPORT parameter is not valid
+#endif
+
 //Stack size required to run the CoAP server
 #ifndef COAP_SERVER_STACK_SIZE
    #define COAP_SERVER_STACK_SIZE 650
 #elif (COAP_SERVER_STACK_SIZE < 1)
    #error COAP_SERVER_STACK_SIZE parameter is not valid
-#endif
-
-//Maximum number of simultaneous DTLS sessions
-#ifndef COAP_SERVER_MAX_SESSIONS
-   #define COAP_SERVER_MAX_SESSIONS 4
-#elif (COAP_SERVER_MAX_SESSIONS < 1)
-   #error COAP_SERVER_MAX_SESSIONS parameter is not valid
 #endif
 
 //DTLS server tick interval
@@ -74,9 +74,44 @@
 
 //DTLS session timeout
 #ifndef COAP_SERVER_SESSION_TIMEOUT
-   #define COAP_SERVER_SESSION_TIMEOUT 60000
+   #define COAP_SERVER_SESSION_TIMEOUT 120000
 #elif (COAP_SERVER_SESSION_TIMEOUT < 0)
    #error COAP_SERVER_SESSION_TIMEOUT parameter is not valid
+#endif
+
+//Maximum number of retransmissions
+#ifndef COAP_SERVER_MAX_RETRANSMIT
+   #define COAP_SERVER_MAX_RETRANSMIT 4
+#elif (COAP_SERVER_MAX_RETRANSMIT < 1)
+   #error COAP_SERVER_MAX_RETRANSMIT parameter is not valid
+#endif
+
+//Initial retransmission timeout (minimum)
+#ifndef COAP_SERVER_ACK_TIMEOUT_MIN
+   #define COAP_SERVER_ACK_TIMEOUT_MIN 2000
+#elif (COAP_SERVER_ACK_TIMEOUT_MIN < 1000)
+   #error COAP_SERVER_ACK_TIMEOUT_MIN
+#endif
+
+//Initial retransmission timeout (maximum)
+#ifndef COAP_SERVER_ACK_TIMEOUT_MAX
+   #define COAP_SERVER_ACK_TIMEOUT_MAX 3000
+#elif (COAP_SERVER_ACK_TIMEOUT_MAX < COAP_SERVER_ACK_TIMEOUT_MIN)
+   #error COAP_SERVER_ACK_TIMEOUT_MAX
+#endif
+
+//Minimum time interval between non-confirmable notifications
+#ifndef COAP_SERVER_MIN_NON_CONFIRMABLE_NOTIF_INTERVAL
+   #define COAP_SERVER_MIN_NON_CONFIRMABLE_NOTIF_INTERVAL 3000
+#elif (COAP_SERVER_MIN_NON_CONFIRMABLE_NOTIF_INTERVAL < 0)
+   #error COAP_SERVER_MIN_NON_CONFIRMABLE_NOTIF_INTERVAL
+#endif
+
+//Maximum time interval between confirmable notifications
+#ifndef COAP_SERVER_MAX_CONFIRMABLE_NOTIF_INTERVAL
+   #define COAP_SERVER_MAX_CONFIRMABLE_NOTIF_INTERVAL 60000
+#elif (COAP_SERVER_MAX_CONFIRMABLE_NOTIF_INTERVAL < 1000)
+   #error COAP_SERVER_MAX_CONFIRMABLE_NOTIF_INTERVAL
 #endif
 
 //Size of buffer used for input/output operations
@@ -84,6 +119,13 @@
    #define COAP_SERVER_BUFFER_SIZE 2048
 #elif (COAP_SERVER_BUFFER_SIZE < 1)
    #error COAP_SERVER_BUFFER_SIZE parameter is not valid
+#endif
+
+//Maximum size of observable recources
+#ifndef COAP_SERVER_MAX_OBS_RESOURCE_SIZE
+   #define COAP_SERVER_MAX_OBS_RESOURCE_SIZE 512
+#elif (COAP_SERVER_MAX_OBS_RESOURCE_SIZE < 1)
+   #error COAP_SERVER_MAX_OBS_RESOURCE_SIZE parameter is not valid
 #endif
 
 //Maximum size of the cookie secret
@@ -114,6 +156,7 @@
 #if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
    #include "core/crypto.h"
    #include "tls/tls.h"
+   #include "tls/tls_ticket.h"
 #endif
 
 //Forward declaration of CoapServerContext structure
@@ -124,10 +167,30 @@ struct _CoapServerContext;
 struct _CoapDtlsSession;
 #define CoapDtlsSession struct _CoapDtlsSession
 
+//Forward declaration of CoapResource structure
+struct _CoapResource;
+#define CoapResource struct _CoapResource
+
+//Forward declaration of CoapObserver structure
+struct _CoapObserver;
+#define CoapObserver struct _CoapObserver
+
 //C++ guard
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+/**
+ * @brief Observer states
+ **/
+
+typedef enum
+{
+   COAP_OBSERVER_STATE_UNREGISTERED = 0,
+   COAP_OBSERVER_STATE_REGISTERED   = 1,
+   COAP_OBSERVER_STATE_UPDATING     = 2
+} CoapObserverState;
 
 
 /**
@@ -160,6 +223,14 @@ typedef error_t (*CoapServerRequestCallback)(CoapServerContext *context,
 
 
 /**
+ * @brief Observe callback function
+ **/
+
+typedef error_t (*CoapServerObserveCallback)(CoapServerContext *context,
+   CoapObserver *observer, CoapResource *resource);
+
+
+/**
  * @brief CoAP server settings
  **/
 
@@ -169,29 +240,25 @@ typedef struct
    NetContext *netContext;                      ///<TCP/IP stack context
    NetInterface *interface;                     ///<Underlying network interface
    uint16_t port;                               ///<CoAP port number
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   uint_t numSessions;                          ///<Maximum number of DTLS sessions
+   CoapDtlsSession *sessions;                   ///<DTLS sessions
+#endif
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   uint_t numResources;                         ///<Maximum number of observable resources
+   CoapResource *resources;                     ///<Observable resources
+   uint_t numObservers;                         ///<Maximum number of observers
+   CoapObserver *observers;                     ///<Observers
+#endif
    CoapServerUdpInitCallback udpInitCallback;   ///<UDP initialization callback
 #if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
    CoapServerDtlsInitCallback dtlsInitCallback; ///<DTLS initialization callback
 #endif
    CoapServerRequestCallback requestCallback;   ///<CoAP request callback
-} CoapServerSettings;
-
-
-/**
- * @brief DTLS session
- **/
-
-struct _CoapDtlsSession
-{
-   CoapServerContext *context;
-   IpAddr serverIpAddr;
-   IpAddr clientIpAddr;
-   uint16_t clientPort;
-#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
-   TlsContext *dtlsContext;
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   CoapServerObserveCallback observeCallback;   ///<Observe callback
 #endif
-   systime_t timestamp;
-};
+} CoapServerSettings;
 
 
 /**
@@ -203,31 +270,106 @@ struct _CoapServerContext
    NetContext *netContext;                                   ///<TCP/IP stack context
    NetInterface *interface;                                  ///<Underlying network interface
    uint16_t port;                                            ///<CoAP port number
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   uint_t numSessions;                                       ///<Maximum number of DTLS sessions
+   CoapDtlsSession *sessions;                                ///<DTLS sessions
+#endif
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   uint_t numResources;                                      ///<Maximum number of observable resources
+   CoapResource *resources;                                  ///<List of observable resources
+   uint_t numObservers;                                      ///<Maximum number of observers
+   CoapObserver *observers;                                  ///<List of registered observers
+#endif
    CoapServerUdpInitCallback udpInitCallback;                ///<UDP initialization callback
 #if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
    CoapServerDtlsInitCallback dtlsInitCallback;              ///<DTLS initialization callback
 #endif
    CoapServerRequestCallback requestCallback;                ///<CoAP request callback
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   CoapServerObserveCallback observeCallback;                ///<Observe callback
+#endif
    bool_t running;                                           ///<Operational state of the CoAP server
    bool_t stop;                                              ///<Stop request
+   OsMutex mutex;                                            ///<Mutex preventing simultaneous access to the context
    OsEvent event;                                            ///<Event object used to poll the underlying socket
    OsTaskParameters taskParams;                              ///<Task parameters
    OsTaskId taskId;                                          ///<Task identifier
    Socket *socket;                                           ///<Underlying socket
-   IpAddr serverIpAddr;                                      ///<Server's IP address
-   IpAddr clientIpAddr;                                      ///<Client's IP address
-   uint16_t clientPort;                                      ///<Client's port
-#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
-   uint8_t cookieSecret[COAP_SERVER_MAX_COOKIE_SECRET_SIZE]; ///<Cookie secret
-   size_t cookieSecretLen;                                   ///<Length of the cookie secret, in bytes
-   CoapDtlsSession session[COAP_SERVER_MAX_SESSIONS];        ///<DTLS sessions
-#endif
+   NetInterface *localInterface;                             ///<Network interface the CoAP request was received on
+   IpAddr localIpAddr;                                       ///<Destination IP address of the received CoAP request
+   IpAddr remoteIpAddr;                                      ///<Source IP address of the received CoAP request
+   uint16_t remotePort;                                      ///<Source port of the received CoAP request
    uint8_t buffer[COAP_SERVER_BUFFER_SIZE];                  ///<Memory buffer for input/output operations
    size_t bufferLen;                                         ///<Length of the buffer, in bytes
    char_t uri[COAP_SERVER_MAX_URI_LEN + 1];                  ///<Resource identifier
    CoapMessage request;                                      ///<CoAP request message
    CoapMessage response;                                     ///<CoAP response message
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   uint8_t cookieSecret[COAP_SERVER_MAX_COOKIE_SECRET_SIZE]; ///<Cookie secret
+   size_t cookieSecretLen;                                   ///<Length of the cookie secret, in bytes
+#endif
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED && TLS_TICKET_SUPPORT == ENABLED)
+   TlsTicketContext dtlsTicketContext;                       ///<DTLS ticket encryption context
+#endif
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   uint16_t mid;                                             ///<Message identifier
+#endif
    COAP_SERVER_PRIVATE_CONTEXT                               ///<Application specific context
+};
+
+
+/**
+ * @brief DTLS session
+ **/
+
+struct _CoapDtlsSession
+{
+   CoapServerContext *context; ///<Pointer to the CoAP server context
+   NetInterface *interface;    ///<Underlying network interface
+   IpAddr serverIpAddr;        ///<Server's IP address
+   IpAddr clientIpAddr;        ///<Client's IP address
+   uint16_t clientPort;        ///<Client's port
+#if (COAP_SERVER_DTLS_SUPPORT == ENABLED)
+   TlsContext *dtlsContext;    ///<DTLS context
+#endif
+   systime_t timestamp;        ///<Timestamp to manage timeout
+};
+
+
+/**
+ * @brief Observable resource
+ **/
+
+struct _CoapResource
+{
+   char_t uri[COAP_SERVER_MAX_URI_LEN + 1];         ///<Resource identifier
+   uint8_t data[COAP_SERVER_MAX_OBS_RESOURCE_SIZE]; ///<Resource state
+   size_t dataLen;                                  ///<Length of the resource state
+   uint32_t seqNum;                                 ///<Sequence number
+};
+
+
+/**
+ * @brief Observer
+ **/
+
+struct _CoapObserver
+{
+   CoapObserverState state;           ///Observer state
+   CoapResource *resource;            ///<Registered resource
+   NetInterface *interface;           ///<Underlying network interface
+   IpAddr serverIpAddr;               ///<Server's IP address
+   IpAddr clientIpAddr;               ///<Client's IP address
+   uint16_t clientPort;               ///<Client's port
+   CoapMessageType type;              ///<Message type
+   uint16_t mid;                      ///<Message identifier
+   uint8_t token[COAP_MAX_TOKEN_LEN]; ///<Token
+   size_t tokenLen;                   ///<Length of the token
+   uint_t retransmitCount;            ///<Retransmission counter
+   systime_t retransmitTimestamp;     ///<Time at which the last message was sent
+   systime_t retransmitTimeout;       ///<Retransmission timeout
+   systime_t ackTimestamp;            ///<Time at which the last acknowledgement was received
+   bool_t changed;                    ///<The resource state has changed
 };
 
 
@@ -242,6 +384,13 @@ error_t coapServerSetCookieSecret(CoapServerContext *context,
 
 error_t coapServerStart(CoapServerContext *context);
 error_t coapServerStop(CoapServerContext *context);
+
+error_t coapServerCreateResource(CoapServerContext *context, const char_t *uri);
+
+error_t coapServerUpdateResource(CoapServerContext *context, const char_t *uri,
+   const void *data, size_t length);
+
+error_t coapServerDeleteResource(CoapServerContext *context, const char_t *uri);
 
 void coapServerTask(CoapServerContext *context);
 

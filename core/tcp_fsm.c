@@ -34,7 +34,7 @@
  * - RFC 1122: Requirements for Internet Hosts - Communication Layers
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -1202,8 +1202,6 @@ void tcpStateFinWait1(Socket *socket, const TcpHeader *segment,
          //Check if our FIN has been acknowledged
          if(segment->ackNum == socket->sndNxt)
          {
-            //Release previously allocated resources
-            tcpDeleteControlBlock(socket);
             //Start the 2MSL timer
             netStartTimer(&socket->timeWaitTimer, TCP_2MSL_TIMER);
             //Switch to the TIME-WAIT state
@@ -1279,8 +1277,6 @@ void tcpStateFinWait2(Socket *socket, const TcpHeader *segment,
          tcpSendSegment(socket, TCP_FLAG_ACK, socket->sndNxt, socket->rcvNxt, 0,
             FALSE);
 
-         //Release previously allocated resources
-         tcpDeleteControlBlock(socket);
          //Start the 2MSL timer
          netStartTimer(&socket->timeWaitTimer, TCP_2MSL_TIMER);
          //Switch to the TIME_WAIT state
@@ -1331,8 +1327,6 @@ void tcpStateClosing(Socket *socket, const TcpHeader *segment, size_t length)
    //ignore the segment
    if(segment->ackNum == socket->sndNxt)
    {
-      //Release previously allocated resources
-      tcpDeleteControlBlock(socket);
       //Start the 2MSL timer
       netStartTimer(&socket->timeWaitTimer, TCP_2MSL_TIMER);
       //Switch to the TIME-WAIT state

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -218,7 +218,7 @@ error_t coapServerReadPayload(CoapServerContext *context, void *data, size_t siz
 
 error_t coapServerSetResponseCode(CoapServerContext *context, CoapCode code)
 {
-   //Make sure the CoAP message is valid
+   //Make sure the CoAP server context is valid
    if(context == NULL)
       return ERROR_INVALID_PARAMETER;
 
@@ -280,7 +280,7 @@ error_t coapServerSetLocationQuery(CoapServerContext *context,
 error_t coapServerSetOpaqueOption(CoapServerContext *context, uint16_t optionNum,
    uint_t optionIndex, const uint8_t *optionValue, size_t optionLen)
 {
-   //Make sure the CoAP message is valid
+   //Make sure the CoAP server context is valid
    if(context == NULL)
       return ERROR_INVALID_PARAMETER;
 
@@ -333,7 +333,7 @@ error_t coapServerSetStringOption(CoapServerContext *context, uint16_t optionNum
 error_t coapServerSetUintOption(CoapServerContext *context, uint16_t optionNum,
    uint_t optionIndex, uint32_t optionValue)
 {
-   //Make sure the CoAP message is valid
+   //Make sure the CoAP server context is valid
    if(context == NULL)
       return ERROR_INVALID_PARAMETER;
 
@@ -354,7 +354,7 @@ error_t coapServerSetUintOption(CoapServerContext *context, uint16_t optionNum,
 error_t coapServerDeleteOption(CoapServerContext *context, uint16_t optionNum,
    uint_t optionIndex)
 {
-   //Make sure the CoAP message is valid
+   //Make sure the CoAP server context is valid
    if(context == NULL)
       return ERROR_INVALID_PARAMETER;
 
@@ -374,7 +374,7 @@ error_t coapServerDeleteOption(CoapServerContext *context, uint16_t optionNum,
 error_t coapServerSetPayload(CoapServerContext *context, const void *payload,
    size_t payloadLen)
 {
-   //Make sure the CoAP message is valid
+   //Make sure the CoAP server context is valid
    if(context == NULL)
       return ERROR_INVALID_PARAMETER;
 
@@ -404,6 +404,37 @@ error_t coapServerWritePayload(CoapServerContext *context, const void *data,
 
    //Write payload data
    return coapWritePayload(&context->response, data, length);
+}
+
+
+/**
+ * @brief Set notification type
+ * @param[in] observer Pointer to the registered observer
+ * @param[in] type Notification type (confirmable or non-confirmable)
+ * @return Error code
+ **/
+
+error_t coapServerSetNotificationType(CoapObserver *observer,
+   CoapMessageType type)
+{
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   //Make sure the observer is valid
+   if(observer == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   //A notification can be confirmable or non-confirmable
+   if(type != COAP_TYPE_CON && type != COAP_TYPE_NON)
+      return ERROR_INVALID_TYPE;
+
+   //Save notification type
+   observer->type = type;
+
+   //Successful processing
+   return NO_ERROR;
+#else
+   //Not implemented
+   return ERROR_NOT_IMPLEMENTED;
+#endif
 }
 
 #endif

@@ -1,6 +1,6 @@
 /**
- * @file mcxe31b_eth_driver.c
- * @brief NXP MCX E31B Ethernet MAC driver
+ * @file mcxe31_eth_driver.c
+ * @brief NXP MCX E31 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -37,7 +37,7 @@
 #include "fsl_memory.h"
 #include "fsl_siul2.h"
 #include "core/net.h"
-#include "drivers/mac/mcxe31b_eth_driver.h"
+#include "drivers/mac/mcxe31_eth_driver.h"
 #include "debug.h"
 
 //Underlying network interface
@@ -48,36 +48,36 @@ static NetInterface *nicDriverInterface;
 
 //Transmit buffer
 #pragma data_alignment = 4
-#pragma location = MCXE31B_ETH_RAM_SECTION
-static uint8_t txBuffer[MCXE31B_ETH_TX_BUFFER_COUNT][MCXE31B_ETH_TX_BUFFER_SIZE];
+#pragma location = MCXE31_ETH_RAM_SECTION
+static uint8_t txBuffer[MCXE31_ETH_TX_BUFFER_COUNT][MCXE31_ETH_TX_BUFFER_SIZE];
 //Receive buffer
 #pragma data_alignment = 4
-#pragma location = MCXE31B_ETH_RAM_SECTION
-static uint8_t rxBuffer[MCXE31B_ETH_RX_BUFFER_COUNT][MCXE31B_ETH_RX_BUFFER_SIZE];
+#pragma location = MCXE31_ETH_RAM_SECTION
+static uint8_t rxBuffer[MCXE31_ETH_RX_BUFFER_COUNT][MCXE31_ETH_RX_BUFFER_SIZE];
 //Transmit DMA descriptors
 #pragma data_alignment = 4
-#pragma location = MCXE31B_ETH_RAM_SECTION
-static Mcxe31bTxDmaDesc txDmaDesc[MCXE31B_ETH_TX_BUFFER_COUNT];
+#pragma location = MCXE31_ETH_RAM_SECTION
+static Mcxe31TxDmaDesc txDmaDesc[MCXE31_ETH_TX_BUFFER_COUNT];
 //Receive DMA descriptors
 #pragma data_alignment = 4
-#pragma location = MCXE31B_ETH_RAM_SECTION
-static Mcxe31bRxDmaDesc rxDmaDesc[MCXE31B_ETH_RX_BUFFER_COUNT];
+#pragma location = MCXE31_ETH_RAM_SECTION
+static Mcxe31RxDmaDesc rxDmaDesc[MCXE31_ETH_RX_BUFFER_COUNT];
 
 //Keil MDK-ARM or GCC compiler?
 #else
 
 //Transmit buffer
-static uint8_t txBuffer[MCXE31B_ETH_TX_BUFFER_COUNT][MCXE31B_ETH_TX_BUFFER_SIZE]
-   __attribute__((aligned(4), __section__(MCXE31B_ETH_RAM_SECTION)));
+static uint8_t txBuffer[MCXE31_ETH_TX_BUFFER_COUNT][MCXE31_ETH_TX_BUFFER_SIZE]
+   __attribute__((aligned(4), __section__(MCXE31_ETH_RAM_SECTION)));
 //Receive buffer
-static uint8_t rxBuffer[MCXE31B_ETH_RX_BUFFER_COUNT][MCXE31B_ETH_RX_BUFFER_SIZE]
-   __attribute__((aligned(4), __section__(MCXE31B_ETH_RAM_SECTION)));
+static uint8_t rxBuffer[MCXE31_ETH_RX_BUFFER_COUNT][MCXE31_ETH_RX_BUFFER_SIZE]
+   __attribute__((aligned(4), __section__(MCXE31_ETH_RAM_SECTION)));
 //Transmit DMA descriptors
-static Mcxe31bTxDmaDesc txDmaDesc[MCXE31B_ETH_TX_BUFFER_COUNT]
-   __attribute__((aligned(4), __section__(MCXE31B_ETH_RAM_SECTION)));
+static Mcxe31TxDmaDesc txDmaDesc[MCXE31_ETH_TX_BUFFER_COUNT]
+   __attribute__((aligned(4), __section__(MCXE31_ETH_RAM_SECTION)));
 //Receive DMA descriptors
-static Mcxe31bRxDmaDesc rxDmaDesc[MCXE31B_ETH_RX_BUFFER_COUNT]
-   __attribute__((aligned(4), __section__(MCXE31B_ETH_RAM_SECTION)));
+static Mcxe31RxDmaDesc rxDmaDesc[MCXE31_ETH_RX_BUFFER_COUNT]
+   __attribute__((aligned(4), __section__(MCXE31_ETH_RAM_SECTION)));
 
 #endif
 
@@ -88,23 +88,23 @@ static uint_t rxIndex;
 
 
 /**
- * @brief MCX E31B Ethernet MAC driver
+ * @brief MCX E31 Ethernet MAC driver
  **/
 
-const NicDriver mcxe31bEthDriver =
+const NicDriver mcxe31EthDriver =
 {
    NIC_TYPE_ETHERNET,
    ETH_MTU,
-   mcxe31bEthInit,
-   mcxe31bEthTick,
-   mcxe31bEthEnableIrq,
-   mcxe31bEthDisableIrq,
-   mcxe31bEthEventHandler,
-   mcxe31bEthSendPacket,
-   mcxe31bEthUpdateMacAddrFilter,
-   mcxe31bEthUpdateMacConfig,
-   mcxe31bEthWritePhyReg,
-   mcxe31bEthReadPhyReg,
+   mcxe31EthInit,
+   mcxe31EthTick,
+   mcxe31EthEnableIrq,
+   mcxe31EthDisableIrq,
+   mcxe31EthEventHandler,
+   mcxe31EthSendPacket,
+   mcxe31EthUpdateMacAddrFilter,
+   mcxe31EthUpdateMacConfig,
+   mcxe31EthWritePhyReg,
+   mcxe31EthReadPhyReg,
    TRUE,
    TRUE,
    TRUE,
@@ -113,24 +113,24 @@ const NicDriver mcxe31bEthDriver =
 
 
 /**
- * @brief MCX E31B Ethernet MAC initialization
+ * @brief MCX E31 Ethernet MAC initialization
  * @param[in] interface Underlying network interface
  * @return Error code
  **/
 
-error_t mcxe31bEthInit(NetInterface *interface)
+error_t mcxe31EthInit(NetInterface *interface)
 {
    error_t error;
    uint32_t temp;
 
    //Debug message
-   TRACE_INFO("Initializing MCX E31B Ethernet MAC...\r\n");
+   TRACE_INFO("Initializing MCX E31 Ethernet MAC...\r\n");
 
    //Save underlying network interface
    nicDriverInterface = interface;
 
    //GPIO configuration
-   mcxe31bEthInitGpio(interface);
+   mcxe31EthInitGpio(interface);
 
    //Enable EMAC peripheral clock
    CLOCK_EnableClock(kCLOCK_Emac);
@@ -174,10 +174,10 @@ error_t mcxe31bEthInit(NetInterface *interface)
 
    //Set the maximum packet size that can be accepted
    temp = EMAC->MAC_EXT_CONFIGURATION & ~EMAC_MAC_EXT_CONFIGURATION_GPSL_MASK;
-   EMAC->MAC_EXT_CONFIGURATION = temp | MCXE31B_ETH_RX_BUFFER_SIZE;
+   EMAC->MAC_EXT_CONFIGURATION = temp | MCXE31_ETH_RX_BUFFER_SIZE;
 
    //Configure MAC address filtering
-   mcxe31bEthUpdateMacAddrFilter(interface);
+   mcxe31EthUpdateMacAddrFilter(interface);
 
    //Disable flow control
    EMAC->MAC_TX_FLOW_CTRL_Q[0] = 0;
@@ -198,7 +198,7 @@ error_t mcxe31bEthInit(NetInterface *interface)
 
    //Configure RX features
    EMAC->DMA_CH[0].DMA_CHX_RX_CTRL = EMAC_DMA_CHX_RX_CTRL_RxPBL(32) |
-      EMAC_DMA_CHX_RX_CTRL_RBSZ_13_y(MCXE31B_ETH_RX_BUFFER_SIZE / 4);
+      EMAC_DMA_CHX_RX_CTRL_RBSZ_13_y(MCXE31_ETH_RX_BUFFER_SIZE / 4);
 
    //Enable store and forward mode for transmission
    EMAC->MTL_QUEUE[0].MTL_TXQX_OP_MODE |= EMAC_MTL_TXQX_OP_MODE_TQS(7) |
@@ -209,7 +209,7 @@ error_t mcxe31bEthInit(NetInterface *interface)
       EMAC_MTL_RXQX_OP_MODE_RSF_MASK;
 
    //Initialize DMA descriptor lists
-   mcxe31bEthInitDmaDesc(interface);
+   mcxe31EthInitDmaDesc(interface);
 
    //Prevent interrupts from being generated when statistic counters reach
    //half their maximum value
@@ -225,12 +225,12 @@ error_t mcxe31bEthInit(NetInterface *interface)
    EMAC->DMA_CH[0].DMA_CHX_INT_EN = EMAC_DMA_CHX_INT_EN_NIE_MASK |
       EMAC_DMA_CHX_INT_EN_RIE_MASK | EMAC_DMA_CHX_INT_EN_TIE_MASK;
 
-   //Set priority grouping (3 bits for pre-emption priority, no bits for subpriority)
-   NVIC_SetPriorityGrouping(MCXE31B_ETH_IRQ_PRIORITY_GROUPING);
+   //Set priority grouping (4 bits for pre-emption priority, no bits for subpriority)
+   NVIC_SetPriorityGrouping(MCXE31_ETH_IRQ_PRIORITY_GROUPING);
 
    //Configure Ethernet interrupt priority
-   NVIC_SetPriority(EMAC_0_IRQn, NVIC_EncodePriority(MCXE31B_ETH_IRQ_PRIORITY_GROUPING,
-      MCXE31B_ETH_IRQ_GROUP_PRIORITY, MCXE31B_ETH_IRQ_SUB_PRIORITY));
+   NVIC_SetPriority(EMAC_0_IRQn, NVIC_EncodePriority(MCXE31_ETH_IRQ_PRIORITY_GROUPING,
+      MCXE31_ETH_IRQ_GROUP_PRIORITY, MCXE31_ETH_IRQ_SUB_PRIORITY));
 
    //Enable MAC transmission and reception
    EMAC->MAC_CONFIGURATION |= EMAC_MAC_CONFIGURATION_TE_MASK |
@@ -253,7 +253,7 @@ error_t mcxe31bEthInit(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-__weak_func void mcxe31bEthInitGpio(NetInterface *interface)
+__weak_func void mcxe31EthInitGpio(NetInterface *interface)
 {
 //FRDM-MCXE31B evaluation board?
 #if defined(USE_FRDM_MCXE31B)
@@ -310,12 +310,12 @@ __weak_func void mcxe31bEthInitGpio(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe31bEthInitDmaDesc(NetInterface *interface)
+void mcxe31EthInitDmaDesc(NetInterface *interface)
 {
    uint_t i;
 
    //Initialize TX DMA descriptor list
-   for(i = 0; i < MCXE31B_ETH_TX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXE31_ETH_TX_BUFFER_COUNT; i++)
    {
       //The descriptor is initially owned by the application
       txDmaDesc[i].tdes0 = 0;
@@ -328,7 +328,7 @@ void mcxe31bEthInitDmaDesc(NetInterface *interface)
    txIndex = 0;
 
    //Initialize RX DMA descriptor list
-   for(i = 0; i < MCXE31B_ETH_RX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXE31_ETH_RX_BUFFER_COUNT; i++)
    {
       //The descriptor is initially owned by the DMA
       rxDmaDesc[i].rdes0 = MEMORY_ConvertMemoryMapAddress(
@@ -347,19 +347,19 @@ void mcxe31bEthInitDmaDesc(NetInterface *interface)
       (uint32_t) &txDmaDesc[0], kMEMORY_Local2DMA);
 
    //Length of the transmit descriptor ring
-   EMAC->DMA_CH[0].DMA_CHX_TXDESC_RING_LENGTH = MCXE31B_ETH_TX_BUFFER_COUNT - 1;
+   EMAC->DMA_CH[0].DMA_CHX_TXDESC_RING_LENGTH = MCXE31_ETH_TX_BUFFER_COUNT - 1;
 
    //Start location of the RX descriptor list
    EMAC->DMA_CH[0].DMA_CHX_RXDESC_LIST_ADDR = MEMORY_ConvertMemoryMapAddress(
       (uint32_t) &rxDmaDesc[0], kMEMORY_Local2DMA);
 
    //Length of the receive descriptor ring
-   EMAC->DMA_CH[0].DMA_CHX_RXDESC_RING_LENGTH = MCXE31B_ETH_RX_BUFFER_COUNT - 1;
+   EMAC->DMA_CH[0].DMA_CHX_RXDESC_RING_LENGTH = MCXE31_ETH_RX_BUFFER_COUNT - 1;
 }
 
 
 /**
- * @brief MCX E31B Ethernet MAC timer handler
+ * @brief MCX E31 Ethernet MAC timer handler
  *
  * This routine is periodically called by the TCP/IP stack to handle periodic
  * operations such as polling the link state
@@ -367,7 +367,7 @@ void mcxe31bEthInitDmaDesc(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe31bEthTick(NetInterface *interface)
+void mcxe31EthTick(NetInterface *interface)
 {
    //Valid Ethernet PHY or switch driver?
    if(interface->phyDriver != NULL)
@@ -392,7 +392,7 @@ void mcxe31bEthTick(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe31bEthEnableIrq(NetInterface *interface)
+void mcxe31EthEnableIrq(NetInterface *interface)
 {
    //Enable Ethernet MAC interrupts
    NVIC_EnableIRQ(EMAC_0_IRQn);
@@ -420,7 +420,7 @@ void mcxe31bEthEnableIrq(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe31bEthDisableIrq(NetInterface *interface)
+void mcxe31EthDisableIrq(NetInterface *interface)
 {
    //Disable Ethernet MAC interrupts
    NVIC_DisableIRQ(EMAC_0_IRQn);
@@ -444,7 +444,7 @@ void mcxe31bEthDisableIrq(NetInterface *interface)
 
 
 /**
- * @brief MCX E31B Ethernet MAC interrupt service routine
+ * @brief MCX E31 Ethernet MAC interrupt service routine
  **/
 
 void EMAC_0_IRQHandler(void)
@@ -496,11 +496,11 @@ void EMAC_0_IRQHandler(void)
 
 
 /**
- * @brief MCX E31B Ethernet MAC event handler
+ * @brief MCX E31 Ethernet MAC event handler
  * @param[in] interface Underlying network interface
  **/
 
-void mcxe31bEthEventHandler(NetInterface *interface)
+void mcxe31EthEventHandler(NetInterface *interface)
 {
    error_t error;
 
@@ -508,7 +508,7 @@ void mcxe31bEthEventHandler(NetInterface *interface)
    do
    {
       //Read incoming packet
-      error = mcxe31bEthReceivePacket(interface);
+      error = mcxe31EthReceivePacket(interface);
 
       //No more data in the receive buffer?
    } while(error != ERROR_BUFFER_EMPTY);
@@ -525,7 +525,7 @@ void mcxe31bEthEventHandler(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe31bEthSendPacket(NetInterface *interface,
+error_t mcxe31EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary)
 {
    size_t length;
@@ -534,7 +534,7 @@ error_t mcxe31bEthSendPacket(NetInterface *interface,
    length = netBufferGetLength(buffer) - offset;
 
    //Check the frame length
-   if(length > MCXE31B_ETH_TX_BUFFER_SIZE)
+   if(length > MCXE31_ETH_TX_BUFFER_SIZE)
    {
       //The transmitter can accept another packet
       osSetEvent(&interface->nicTxEvent);
@@ -569,7 +569,7 @@ error_t mcxe31bEthSendPacket(NetInterface *interface,
    EMAC->DMA_CH[0].DMA_CHX_TXDESC_TAIL_PTR = 0;
 
    //Increment index and wrap around if necessary
-   if(++txIndex >= MCXE31B_ETH_TX_BUFFER_COUNT)
+   if(++txIndex >= MCXE31_ETH_TX_BUFFER_COUNT)
    {
       txIndex = 0;
    }
@@ -592,7 +592,7 @@ error_t mcxe31bEthSendPacket(NetInterface *interface,
  * @return Error code
  **/
 
-error_t mcxe31bEthReceivePacket(NetInterface *interface)
+error_t mcxe31EthReceivePacket(NetInterface *interface)
 {
    error_t error;
    size_t n;
@@ -611,7 +611,7 @@ error_t mcxe31bEthReceivePacket(NetInterface *interface)
             //Retrieve the length of the frame
             n = rxDmaDesc[rxIndex].rdes3 & EMAC_RDES3_PL;
             //Limit the number of data to read
-            n = MIN(n, MCXE31B_ETH_RX_BUFFER_SIZE);
+            n = MIN(n, MCXE31_ETH_RX_BUFFER_SIZE);
 
             //Additional options can be passed to the stack along with the packet
             ancillary = NET_DEFAULT_RX_ANCILLARY;
@@ -642,7 +642,7 @@ error_t mcxe31bEthReceivePacket(NetInterface *interface)
       rxDmaDesc[rxIndex].rdes3 = EMAC_RDES3_OWN | EMAC_RDES3_IOC | EMAC_RDES3_BUF1V;
 
       //Increment index and wrap around if necessary
-      if(++rxIndex >= MCXE31B_ETH_RX_BUFFER_COUNT)
+      if(++rxIndex >= MCXE31_ETH_RX_BUFFER_COUNT)
       {
          rxIndex = 0;
       }
@@ -669,7 +669,7 @@ error_t mcxe31bEthReceivePacket(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe31bEthUpdateMacAddrFilter(NetInterface *interface)
+error_t mcxe31EthUpdateMacAddrFilter(NetInterface *interface)
 {
    uint_t i;
    uint_t j;
@@ -716,7 +716,7 @@ error_t mcxe31bEthUpdateMacAddrFilter(NetInterface *interface)
             if(macIsMulticastAddr(&entry->addr))
             {
                //Compute CRC over the current MAC address
-               crc = mcxe31bEthCalcCrc(&entry->addr, sizeof(MacAddr));
+               crc = mcxe31EthCalcCrc(&entry->addr, sizeof(MacAddr));
 
                //The upper 6 bits in the CRC register are used to index the
                //contents of the hash table
@@ -800,7 +800,7 @@ error_t mcxe31bEthUpdateMacAddrFilter(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxe31bEthUpdateMacConfig(NetInterface *interface)
+error_t mcxe31EthUpdateMacConfig(NetInterface *interface)
 {
    uint32_t config;
 
@@ -843,7 +843,7 @@ error_t mcxe31bEthUpdateMacConfig(NetInterface *interface)
  * @param[in] data Register value
  **/
 
-void mcxe31bEthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxe31EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data)
 {
    uint32_t temp;
@@ -886,7 +886,7 @@ void mcxe31bEthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
  * @return Register value
  **/
 
-uint16_t mcxe31bEthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxe31EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr)
 {
    uint16_t data;
@@ -935,7 +935,7 @@ uint16_t mcxe31bEthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
  * @return Resulting CRC value
  **/
 
-uint32_t mcxe31bEthCalcCrc(const void *data, size_t length)
+uint32_t mcxe31EthCalcCrc(const void *data, size_t length)
 {
    uint_t i;
    uint_t j;

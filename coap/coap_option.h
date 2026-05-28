@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _COAP_OPTION_H
@@ -183,6 +183,7 @@ typedef enum
    COAP_CONTENT_FORMAT_APP_SENSML_XML            = 311,
    COAP_CONTENT_FORMAT_SENML_ETCH_JSON           = 320,
    COAP_CONTENT_FORMAT_SENML_ETCH_CBOR           = 322,
+   COAP_CONTENT_FORMAT_APP_DNS_MESSAGE           = 553,
    COAP_CONTENT_FORMAT_APP_VND_OCF_CBOR          = 10000,
    COAP_CONTENT_FORMAT_APP_OSCORE                = 10001,
    COAP_CONTENT_FORMAT_APP_JSON_DEFLATE          = 11050,

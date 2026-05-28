@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -187,7 +187,7 @@ error_t coapClientSendRequest(CoapClientRequest *request,
          //the sender of a Confirmable or Non-confirmable message
          coapClientGenerateMessageId(context, header);
 
-         //Reset retransmission counter
+         //The retransmission counter is set to 0
          request->retransmitCount = 0;
 
          //Save callback function

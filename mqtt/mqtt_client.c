@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -41,6 +41,9 @@
 
 //Check TCP/IP stack configuration
 #if (MQTT_CLIENT_SUPPORT == ENABLED)
+
+//Default PUBLISH packet parameters
+const MqttPublishInfo MQTT_DEFAULT_PUBLISH_INFO = {0};
 
 
 /**
@@ -556,10 +559,17 @@ error_t mqttClientConnect(MqttClientContext *context,
       }
       else if(context->state == MQTT_CLIENT_STATE_PACKET_RECEIVED)
       {
-         //Reset packet type
-         context->packetType = MQTT_PACKET_TYPE_INVALID;
-         //A CONNACK packet has been received
-         mqttClientChangeState(context, MQTT_CLIENT_STATE_IDLE);
+         //Save TLS session
+         error = mqttClientSaveSession(context);
+
+         //Check status code
+         if(!error)
+         {
+            //Reset packet type
+            context->packetType = MQTT_PACKET_TYPE_INVALID;
+            //A CONNACK packet has been received
+            mqttClientChangeState(context, MQTT_CLIENT_STATE_IDLE);
+         }
       }
       else if(context->state == MQTT_CLIENT_STATE_IDLE)
       {
@@ -638,36 +648,49 @@ error_t mqttClientPublish(MqttClientContext *context, const char_t *topic,
    const void *message, size_t length, MqttQosLevel qos, bool_t retain,
    uint16_t *packetId)
 {
+   MqttPublishInfo publishInfo;
+
+   //Check parameters
+   if(context == NULL || topic == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   //Set PUBLISH packet parameters
+   publishInfo.dup = FALSE;
+   publishInfo.qos = qos;
+   publishInfo.retain = retain;
+   publishInfo.topicName = topic;
+   publishInfo.payload = message;
+   publishInfo.payloadLen = length;
+   publishInfo.fragOffset = 0;
+   publishInfo.fragLen = 0;
+   publishInfo.packetId = packetId;
+
    //Publish message
-   return mqttClientPublishEx(context, topic, message, length, FALSE,
-      qos, retain, packetId);
+   return mqttClientPublishEx(context, &publishInfo);
 }
 
 
 /**
  * @brief Publish message
  * @param[in] context Pointer to the MQTT client context
- * @param[in] topic Topic name
- * @param[in] message Message payload
- * @param[in] length Length of the message payload
- * @param[in] dup DUP flag
- * @param[in] qos QoS level to be used when publishing the message
- * @param[in] retain This flag specifies if the message is to be retained
- * @param[out] packetId Packet identifier used to send the PUBLISH packet
+ * @param[in] publishInfo PUBLISH packet parameters
  * @return Error code
  **/
 
-error_t mqttClientPublishEx(MqttClientContext *context, const char_t *topic,
-   const void *message, size_t length, bool_t dup, MqttQosLevel qos,
-   bool_t retain, uint16_t *packetId)
+error_t mqttClientPublishEx(MqttClientContext *context,
+   MqttPublishInfo *publishInfo)
 {
    error_t error;
+   size_t n;
 
    //Check parameters
-   if(context == NULL || topic == NULL)
+   if(context == NULL || publishInfo == NULL)
       return ERROR_INVALID_PARAMETER;
 
-   if(message == NULL && length != 0)
+   if(publishInfo->topicName == NULL)
+      return ERROR_INVALID_PARAMETER;
+
+   if(publishInfo->payload == NULL && publishInfo->payloadLen != 0)
       return ERROR_INVALID_PARAMETER;
 
    //Initialize status code
@@ -683,16 +706,15 @@ error_t mqttClientPublishEx(MqttClientContext *context, const char_t *topic,
          if(context->packetType == MQTT_PACKET_TYPE_INVALID)
          {
             //Format PUBLISH packet
-            error = mqttClientFormatPublish(context, topic, message, length,
-               dup, qos, retain);
+            error = mqttClientFormatPublish(context, publishInfo);
 
             //Check status code
             if(!error)
             {
                //Save the packet identifier used to send the PUBLISH packet
-               if(packetId != NULL)
+               if(publishInfo->packetId != NULL)
                {
-                  *packetId = context->packetId;
+                  *publishInfo->packetId = context->packetId;
                }
 
                //Debug message
@@ -723,13 +745,98 @@ error_t mqttClientPublishEx(MqttClientContext *context, const char_t *topic,
       }
       else if(context->state == MQTT_CLIENT_STATE_SENDING_PACKET)
       {
-         //Send more data
-         error = mqttClientProcessEvents(context, context->settings.timeout);
+         //Any remaining data to be sent?
+         if(context->packetPos < context->packetLen)
+         {
+            //Send more data
+            error = mqttClientSendData(context, context->packet + context->packetPos,
+               context->packetLen - context->packetPos, &n, 0);
+
+            //Advance data pointer
+            context->packetPos += n;
+         }
+         else
+         {
+            //Save the time at which the data was sent
+            context->keepAliveTimestamp = osGetSystemTime();
+
+            //Update MQTT client state
+            mqttClientChangeState(context, MQTT_CLIENT_STATE_SENDING_PAYLOAD);
+         }
+      }
+      else if(context->state == MQTT_CLIENT_STATE_SENDING_PAYLOAD)
+      {
+         //Fragmented payload?
+         if(publishInfo->fragLen > 0)
+         {
+            //Any remaining data to be sent?
+            if(context->payloadPos < publishInfo->payloadLen)
+            {
+               if(context->fragPos < publishInfo->fragLen)
+               {
+                  //Send more data
+                  error = mqttClientSendData(context,
+                     (uint8_t *) publishInfo->payload + context->fragPos,
+                     publishInfo->fragLen - context->fragPos, &n, 0);
+                  
+                  //Advance data pointer
+                  context->fragPos += n;
+               }
+               else
+               {
+                  //The transmission of the fragment is complete
+                  context->payloadPos += publishInfo->fragLen;
+                  context->fragPos = 0;
+
+                  //Check whether the fragment is the final one or not
+                  if(context->payloadPos < publishInfo->payloadLen)
+                     break;
+               }
+            }
+            else
+            {
+               //The transmission of the payload is complete
+               context->payloadPos = 0;
+               context->fragPos = 0;
+
+               //Save the time at which the data was sent
+               context->keepAliveTimestamp = osGetSystemTime();
+
+               //Update MQTT client state
+               mqttClientChangeState(context, MQTT_CLIENT_STATE_PACKET_SENT);
+            }
+         }
+         else
+         {
+            //Any remaining data to be sent?
+            if(context->payloadPos < publishInfo->payloadLen)
+            {
+               //Send more data
+               error = mqttClientSendData(context,
+                  (uint8_t *) publishInfo->payload + context->payloadPos,
+                  publishInfo->payloadLen - context->payloadPos, &n, 0);
+               
+               //Advance data pointer
+               context->payloadPos += n;
+            }
+            else
+            {
+               //The transmission of the payload is complete
+               context->payloadPos = 0;
+               context->fragPos = 0;
+
+               //Save the time at which the data was sent
+               context->keepAliveTimestamp = osGetSystemTime();
+
+               //Update MQTT client state
+               mqttClientChangeState(context, MQTT_CLIENT_STATE_PACKET_SENT);
+            }
+         }
       }
       else if(context->state == MQTT_CLIENT_STATE_PACKET_SENT)
       {
          //The last parameter is optional
-         if(packetId != NULL)
+         if(publishInfo->packetId != NULL)
          {
             //Do not wait for PUBACK/PUBCOMP packet
             mqttClientChangeState(context, MQTT_CLIENT_STATE_IDLE);
@@ -737,7 +844,7 @@ error_t mqttClientPublishEx(MqttClientContext *context, const char_t *topic,
          else
          {
             //Check QoS level
-            if(qos == MQTT_QOS_LEVEL_0)
+            if(publishInfo->qos == MQTT_QOS_LEVEL_0)
             {
                //No response is sent by the receiver and no retry is performed by the sender
                mqttClientChangeState(context, MQTT_CLIENT_STATE_IDLE);

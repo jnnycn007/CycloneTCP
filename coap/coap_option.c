@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -90,8 +90,8 @@ error_t coapParseOptions(const uint8_t *p, size_t length, size_t *consumed)
    //Total number of bytes that have been consumed
    *consumed = 0;
 
-   //For the first option in a message, a preceding option instance with
-   //Option Number zero is assumed
+   //For the first option in a message, a preceding option instance with Option
+   //Number zero is assumed
    option.number = 0;
 
    //Loop through CoAP options
@@ -173,8 +173,8 @@ error_t coapParseOption(const uint8_t *p, size_t length,
       if(length < sizeof(uint8_t))
          return ERROR_BUFFER_UNDERFLOW;
 
-      //An 8-bit unsigned integer follows the initial byte and indicates
-      //the Option Delta minus 13
+      //An 8-bit unsigned integer follows the initial byte and indicates the
+      //Option Delta minus 13
       option->delta = *p + COAP_OPT_DELTA_MINUS_8_BITS;
 
       //Point to the next field
@@ -190,8 +190,8 @@ error_t coapParseOption(const uint8_t *p, size_t length,
    //Check the value of the Option Length field
    if(header->length == COAP_OPT_LEN_RESERVED)
    {
-      //If the field is set to this value, it must be processed as a
-      //message format error
+      //If the field is set to this value, it must be processed as a message
+      //format error
       return ERROR_INVALID_MESSAGE;
    }
    else if(header->length == COAP_OPT_LEN_16_BITS)
@@ -200,8 +200,8 @@ error_t coapParseOption(const uint8_t *p, size_t length,
       if(length < sizeof(uint16_t))
          return ERROR_BUFFER_UNDERFLOW;
 
-      //A 16-bit unsigned integer in network byte order precedes the
-      //Option Value and indicates the Option Length minus 269
+      //A 16-bit unsigned integer in network byte order precedes the Option
+      //Value and indicates the Option Length minus 269
       option->length = LOAD16BE(p) + COAP_OPT_LEN_MINUS_16_BITS;
 
       //Point to the next field
@@ -214,8 +214,8 @@ error_t coapParseOption(const uint8_t *p, size_t length,
       if(length < sizeof(uint8_t))
          return ERROR_BUFFER_UNDERFLOW;
 
-      //An 8-bit unsigned integer precedes the Option Value and indicates
-      //the Option Length minus 13
+      //An 8-bit unsigned integer precedes the Option Value and indicates the
+      //Option Length minus 13
       option->length = *p + COAP_OPT_LEN_MINUS_8_BITS;
 
       //Point to the next field
@@ -224,8 +224,8 @@ error_t coapParseOption(const uint8_t *p, size_t length,
    }
    else
    {
-      //A value between 0 and 12 indicates the length of the Option Value,
-      //in bytes
+      //A value between 0 and 12 indicates the length of the Option Value, in
+      //bytes
       option->length = header->length;
    }
 
@@ -283,8 +283,8 @@ error_t coapFormatOption(uint8_t *p, uint16_t prevOptionNum,
          //Fix the initial byte of the CoAP option
          header->delta = COAP_OPT_DELTA_16_BITS;
 
-         //A 16-bit unsigned integer in network byte order follows the
-         //initial byte and indicates the Option Delta minus 269
+         //A 16-bit unsigned integer in network byte order follows the initial
+         //byte and indicates the Option Delta minus 269
          STORE16BE(option->delta - COAP_OPT_DELTA_MINUS_16_BITS, p + n);
       }
 
@@ -299,8 +299,8 @@ error_t coapFormatOption(uint8_t *p, uint16_t prevOptionNum,
          //Fix the initial byte of the CoAP option
          header->delta = COAP_OPT_DELTA_8_BITS;
 
-         //An 8-bit unsigned integer follows the initial byte and
-         //indicates the Option Delta minus 13
+         //An 8-bit unsigned integer follows the initial byte and indicates the
+         //Option Delta minus 13
          p[n] = (uint8_t) (option->delta - COAP_OPT_DELTA_MINUS_8_BITS);
       }
 
@@ -326,8 +326,8 @@ error_t coapFormatOption(uint8_t *p, uint16_t prevOptionNum,
          //Fix the initial byte of the CoAP option
          header->length = COAP_OPT_LEN_16_BITS;
 
-         //A 16-bit unsigned integer in network byte order precedes the
-         //Option Value and indicates the Option Length minus 269
+         //A 16-bit unsigned integer in network byte order precedes the Option
+         //Value and indicates the Option Length minus 269
          STORE16BE(option->length - COAP_OPT_LEN_MINUS_16_BITS, p + n);
       }
 
@@ -342,8 +342,8 @@ error_t coapFormatOption(uint8_t *p, uint16_t prevOptionNum,
          //Fix the initial byte of the CoAP option
          header->length = COAP_OPT_LEN_8_BITS;
 
-         //An 8-bit unsigned integer precedes the Option Value and
-         //indicates the Option Length minus 13
+         //An 8-bit unsigned integer precedes the Option Value and indicates
+         //the Option Length minus 13
          p[n] = (uint8_t) (option->length - COAP_OPT_LEN_MINUS_8_BITS);
       }
 
@@ -418,8 +418,8 @@ error_t coapSetOption(CoapMessage *message, uint16_t optionNum,
    //Number of bytes left to process
    length -= n;
 
-   //For the first option in a message, a preceding option instance with
-   //Option Number zero is assumed
+   //For the first option in a message, a preceding option instance with Option
+   //Number zero is assumed
    prevOptionNum = 0;
 
    //Loop through CoAP options
@@ -471,8 +471,8 @@ error_t coapSetOption(CoapMessage *message, uint16_t optionNum,
    }
 
    //Each option instance in a message specifies the Option Number of the
-   //defined CoAP option, the length of the Option Value, and the Option
-   //Value itself
+   //defined CoAP option, the length of the Option Value, and the Option Value
+   //itself
    option.number = optionNum;
    option.length = optionLen;
    option.value = optionValue;
@@ -597,8 +597,8 @@ error_t coapGetOption(const CoapMessage *message, uint16_t optionNum,
    //Number of bytes left to process
    length -= n;
 
-   //For the first option in a message, a preceding option instance with
-   //Option Number zero is assumed
+   //For the first option in a message, a preceding option instance with Option
+   //Number zero is assumed
    option.number = 0;
 
    //Loop through CoAP options
@@ -718,8 +718,8 @@ error_t coapDeleteOption(CoapMessage *message, uint16_t optionNum,
    //Number of bytes left to process
    length -= n;
 
-   //For the first option in a message, a preceding option instance with
-   //Option Number zero is assumed
+   //For the first option in a message, a preceding option instance with Option
+   //Number zero is assumed
    prevOptionNum = 0;
 
    //Loop through CoAP options

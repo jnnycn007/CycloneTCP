@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _MQTT_CLIENT_PACKET_H
@@ -74,9 +74,8 @@ error_t mqttClientProcessPingResp(MqttClientContext *context,
 error_t mqttClientFormatConnect(MqttClientContext *context,
    bool_t cleanSession);
 
-error_t mqttClientFormatPublish(MqttClientContext *context, const char_t *topic,
-   const void *message, size_t length, bool_t dup, MqttQosLevel qos,
-   bool_t retain);
+error_t mqttClientFormatPublish(MqttClientContext *context,
+   MqttPublishInfo *publishInfo);
 
 error_t mqttClientFormatPubAck(MqttClientContext *context, uint16_t packetId);
 error_t mqttClientFormatPubRec(MqttClientContext *context, uint16_t packetId);

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -994,6 +994,8 @@ error_t tcpAbort(Socket *socket)
    //TIME-WAIT state?
    case TCP_STATE_TIME_WAIT:
 #if (TCP_2MSL_TIMER > 0)
+      //Release previously allocated resources
+      tcpDeleteControlBlock(socket);
       //The user doe not own the socket anymore...
       socket->ownedFlag = FALSE;
       //TCB will be deleted and socket will be closed

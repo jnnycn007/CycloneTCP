@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _MODBUS_CLIENT_H
@@ -135,6 +135,7 @@ struct _ModbusClientContext
 #if (MODBUS_CLIENT_TLS_SUPPORT == ENABLED)
    TlsContext *tlsContext;                      ///<TLS context
    TlsSessionState tlsSession;                  ///<TLS session state
+   bool_t tlsSessionSaved;                      ///<The TLS session state has been saved
    ModbusClientTlsInitCallback tlsInitCallback; ///<TLS initialization callback function
 #endif
    systime_t timeout;                           ///<Timeout value

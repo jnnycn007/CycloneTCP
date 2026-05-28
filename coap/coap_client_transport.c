@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -100,6 +100,15 @@ error_t coapClientOpenConnection(CoapClientContext *context)
       if(error)
          return error;
 
+#if (TLS_ALPN_SUPPORT == ENABLED)
+      //For CoAP over DTLS, a short ALPN ID "co" is allocated (refer to
+      //RFC 9952, section 2)
+      error = tlsSetAlpnProtocolList(context->dtlsContext, "co");
+      //Any error to report?
+      if(error)
+         return error;
+#endif
+
       //Force DTLS to operate in non-blocking mode
       error = tlsSetTimeout(context->dtlsContext, 0);
       //Any error to report?
@@ -158,11 +167,10 @@ error_t coapClientEstablishConnection(CoapClientContext *context,
       if(error)
          return error;
 
-      //Save DTLS session
-      error = tlsSaveSessionState(context->dtlsContext, &context->dtlsSession);
-      //Any error to report?
-      if(error)
-         return error;
+      //At any time after the server has received the client Finished
+      //message, it may send a NewSessionTicket message (refer to RFC 8446,
+      //section 4.6.1)
+      context->dtlsSessionSaved = FALSE;
    }
 #endif
 
@@ -285,6 +293,23 @@ error_t coapClientReceiveDatagram(CoapClientContext *context,
    {
       //Receive datagram
       error = tlsRead(context->dtlsContext, data, size, received, 0);
+
+      //Check status code
+      if(!error)
+      {
+         //At any time after the server has received the client Finished
+         //message, it may send a NewSessionTicket message (refer to RFC 8446,
+         //section 4.6.1)
+         if(!context->dtlsSessionSaved)
+         {
+            //Save DTLS session
+            error = tlsSaveSessionState(context->dtlsContext,
+               &context->dtlsSession);
+
+            //Update flag
+            context->dtlsSessionSaved = TRUE;
+         }
+      }
    }
    else
 #endif

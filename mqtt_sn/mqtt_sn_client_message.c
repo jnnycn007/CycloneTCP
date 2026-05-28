@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -81,36 +81,43 @@ error_t mqttSnClientProcessMessage(MqttSnClientContext *context,
          //Process incoming GWINFO message
          error = mqttSnClientProcessGwInfo(context, message, ipAddr, port);
          break;
+
       //CONNACK message received?
       case MQTT_SN_MSG_TYPE_CONNACK:
          //Process incoming CONNACK message
          error = mqttSnClientProcessConnAck(context, message);
          break;
+
       //WILLTOPICREQ message received?
       case MQTT_SN_MSG_TYPE_WILLTOPICREQ:
          //Process incoming WILLTOPICREQ message
          error = mqttSnClientProcessWillTopicReq(context, message);
          break;
+
       //WILLMSGREQ message received?
       case MQTT_SN_MSG_TYPE_WILLMSGREQ:
          //Process incoming WILLMSGREQ message
          error = mqttSnClientProcessWillMsgReq(context, message);
          break;
+
       //REGISTER message received?
       case MQTT_SN_MSG_TYPE_REGISTER:
          //Process incoming REGISTER message
          error = mqttSnClientProcessRegister(context, message);
          break;
+
       //REGACK message received?
       case MQTT_SN_MSG_TYPE_REGACK:
          //Process incoming REGACK message
          error = mqttSnClientProcessRegAck(context, message);
          break;
+
       //PUBLISH message received?
       case MQTT_SN_MSG_TYPE_PUBLISH:
          //Process incoming PUBLISH message
          error = mqttSnClientProcessPublish(context, message);
          break;
+
       //PUBACK message received?
       case MQTT_SN_MSG_TYPE_PUBACK:
          //Process incoming PUBACK message
@@ -121,51 +128,61 @@ error_t mqttSnClientProcessMessage(MqttSnClientContext *context,
          //Process incoming PUBREC message
          error = mqttSnClientProcessPubRec(context, message);
          break;
+
       //PUBREL message received?
       case MQTT_SN_MSG_TYPE_PUBREL:
          //Process incoming PUBREL message
          error = mqttSnClientProcessPubRel(context, message);
          break;
+
       //PUBCOMP message received?
       case MQTT_SN_MSG_TYPE_PUBCOMP:
          //Process incoming PUBCOMP message
          error = mqttSnClientProcessPubComp(context, message);
          break;
+
       //SUBACK message received?
       case MQTT_SN_MSG_TYPE_SUBACK:
          //Process incoming SUBACK message
          error = mqttSnClientProcessSubAck(context, message);
          break;
+
       //UNSUBACK message received?
       case MQTT_SN_MSG_TYPE_UNSUBACK:
          //Process incoming UNSUBACK message
          error = mqttSnClientProcessUnsubAck(context, message);
          break;
+
       //PINGREQ message received?
       case MQTT_SN_MSG_TYPE_PINGREQ:
          //Process incoming PINGREQ message
          error = mqttSnClientProcessPingReq(context, message);
          break;
+
       //PINGRESP message received?
       case MQTT_SN_MSG_TYPE_PINGRESP:
          //Process incoming PINGRESP message
          error = mqttSnClientProcessPingResp(context, message);
          break;
+
       //DISCONNECT message received?
       case MQTT_SN_MSG_TYPE_DISCONNECT:
          //Process incoming DISCONNECT message
          error = mqttSnClientProcessDisconnect(context, message);
          break;
+
       //WILLTOPICRESP message received?
       case MQTT_SN_MSG_TYPE_WILLTOPICRESP:
          //Process incoming DISCONNECT message
          error = mqttSnClientProcessWillTopicResp(context, message);
          break;
+
       //WILLMSGRESP message received?
       case MQTT_SN_MSG_TYPE_WILLMSGRESP:
          //Process incoming DISCONNECT message
          error = mqttSnClientProcessWillMsgResp(context, message);
          break;
+
       //Unknown message received?
       default:
          //Report an error

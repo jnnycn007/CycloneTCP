@@ -33,7 +33,7 @@
  * - RFC 3207: SMTP Service Extension for Secure SMTP over TLS
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -283,7 +283,9 @@ error_t smtpClientConnect(SmtpClientContext *context,
             }
             else
             {
-               //Format EHLO command
+               //The client should send an EHLO command as the first command
+               //after a successful TLS negotiation (refer to RFC 3207,
+               //section 4.2)
                error = smtpClientFormatCommand(context, "EHLO [127.0.0.1]", NULL);
 
                //Check status code
@@ -335,17 +337,45 @@ error_t smtpClientConnect(SmtpClientContext *context,
             if(SMTP_REPLY_CODE_2YZ(context->replyCode))
             {
 #if (SMTP_CLIENT_TLS_SUPPORT == ENABLED)
-               //Explicit TLS?
-               if(mode == SMTP_MODE_EXPLICIT_TLS && context->tlsContext == NULL)
+               //Implicit or explicit TLS?
+               if(mode == SMTP_MODE_IMPLICIT_TLS)
                {
-                  //Format STARTTLS command
-                  error = smtpClientFormatCommand(context, "STARTTLS", NULL);
+                  //Save TLS session
+                  error = smtpClientSaveSession(context);
 
                   //Check status code
                   if(!error)
                   {
-                     //Send STARTTLS command and wait for the server's response
-                     smtpClientChangeState(context, SMTP_CLIENT_STATE_SUB_COMMAND_3);
+                     //The SMTP client is connected
+                     smtpClientChangeState(context, SMTP_CLIENT_STATE_CONNECTED);
+                  }
+               }
+               else if(mode == SMTP_MODE_EXPLICIT_TLS)
+               {
+                  //Valid TLS context?
+                  if(context->tlsContext != NULL)
+                  {
+                     //Save TLS session
+                     error = smtpClientSaveSession(context);
+
+                     //Check status code
+                     if(!error)
+                     {
+                        //The SMTP client is connected
+                        smtpClientChangeState(context, SMTP_CLIENT_STATE_CONNECTED);
+                     }
+                  }
+                  else
+                  {
+                     //Format STARTTLS command
+                     error = smtpClientFormatCommand(context, "STARTTLS", NULL);
+
+                     //Check status code
+                     if(!error)
+                     {
+                        //Send STARTTLS command and wait for the server's response
+                        smtpClientChangeState(context, SMTP_CLIENT_STATE_SUB_COMMAND_3);
+                     }
                   }
                }
                else

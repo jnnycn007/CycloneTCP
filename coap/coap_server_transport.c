@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -34,6 +34,7 @@
 //Dependencies
 #include <stdlib.h>
 #include "coap/coap_server.h"
+#include "coap/coap_server_observe.h"
 #include "coap/coap_server_transport.h"
 #include "coap/coap_server_misc.h"
 #include "debug.h"
@@ -61,13 +62,11 @@ error_t coapServerCookieVerifyCallback(TlsContext *context,
  * @brief Accept a new connection from a client
  * @param[in] context Pointer to the CoAP server context
  * @param[in] session Pointer to the DTLS session
- * @param[in] remoteIpAddr Client IP address
- * @param[in] remotePort Client port number
  * @return Error code
  **/
 
 error_t coapServerAcceptSession(CoapServerContext *context,
-   CoapDtlsSession *session, const IpAddr *remoteIpAddr, uint16_t remotePort)
+   CoapDtlsSession *session)
 {
    error_t error;
    TlsState state;
@@ -77,9 +76,10 @@ error_t coapServerAcceptSession(CoapServerContext *context,
 
    //Initialize session parameters
    session->context = context;
-   session->serverIpAddr = context->serverIpAddr;
-   session->clientIpAddr = context->clientIpAddr;
-   session->clientPort = context->clientPort;
+   session->interface = context->localInterface;
+   session->serverIpAddr = context->localIpAddr;
+   session->clientIpAddr = context->remoteIpAddr;
+   session->clientPort = context->remotePort;
    session->timestamp = osGetSystemTime();
 
    //Allocate DTLS context
@@ -106,8 +106,9 @@ error_t coapServerAcceptSession(CoapServerContext *context,
             break;
 
          //Set send and receive callbacks (I/O abstraction layer)
-         error = tlsSetSocketCallbacks(session->dtlsContext, coapServerSendCallback,
-            coapServerReceiveCallback, (TlsSocketHandle) session);
+         error = tlsSetSocketCallbacks(session->dtlsContext,
+            coapServerSendCallback, coapServerReceiveCallback,
+            (TlsSocketHandle) session);
          //Any error to report?
          if(error)
             break;
@@ -119,6 +120,21 @@ error_t coapServerAcceptSession(CoapServerContext *context,
          //Any error to report?
          if(error)
             break;
+
+#if (TLS_TICKET_SUPPORT == ENABLED)
+         //Enable session ticket mechanism
+         error = tlsEnableSessionTickets(session->dtlsContext, TRUE);
+         //Any error to report?
+         if(error)
+            return error;
+
+         //Register ticket encryption/decryption callbacks
+         error = tlsSetTicketCallbacks(session->dtlsContext, tlsEncryptTicket,
+            tlsDecryptTicket, &context->dtlsTicketContext);
+         //Any error to report?
+         if(error)
+            return error;
+#endif
 
          //Invoke user-defined callback, if any
          if(context->dtlsInitCallback != NULL)
@@ -157,7 +173,8 @@ error_t coapServerAcceptSession(CoapServerContext *context,
 
          //Debug message
          TRACE_INFO("CoAP Server: DTLS session established with client %s port %"
-            PRIu16 "...\r\n", ipAddrToString(remoteIpAddr, NULL), ntohs(remotePort));
+            PRIu16 "...\r\n", ipAddrToString(&session->clientIpAddr, NULL),
+            ntohs(session->clientPort));
 
          //End of exception handling block
       } while(0);
@@ -209,18 +226,19 @@ error_t coapServerDemultiplexSession(CoapServerContext *context)
    oldestSession = NULL;
 
    //Demultiplexing of incoming datagrams into separate DTLS sessions
-   for(i = 0; i < COAP_SERVER_MAX_SESSIONS; i++)
+   for(i = 0; i < context->numSessions; i++)
    {
       //Point to the current DTLS session
-      session = &context->session[i];
+      session = &context->sessions[i];
 
       //Valid DTLS session?
       if(session->dtlsContext != NULL)
       {
          //Determine if a DTLS session matches the incoming datagram
-         if(ipCompAddr(&session->serverIpAddr, &context->serverIpAddr) &&
-            ipCompAddr(&session->clientIpAddr, &context->clientIpAddr) &&
-            session->clientPort == context->clientPort)
+         if(session->interface == context->localInterface &&
+            ipCompAddr(&session->serverIpAddr, &context->localIpAddr) &&
+            ipCompAddr(&session->clientIpAddr, &context->remoteIpAddr) &&
+            session->clientPort == context->remotePort)
          {
             //Save current time
             session->timestamp = osGetSystemTime();
@@ -233,7 +251,7 @@ error_t coapServerDemultiplexSession(CoapServerContext *context)
             if(!error)
             {
                //Process the received CoAP message
-               error = coapServerProcessRequest(context, context->buffer,
+               error = coapServerProcessMessage(context, context->buffer,
                   length);
             }
             else if(error == ERROR_TIMEOUT || error == ERROR_WOULD_BLOCK)
@@ -276,7 +294,7 @@ error_t coapServerDemultiplexSession(CoapServerContext *context)
    }
 
    //No matching DTLS session?
-   if(i >= COAP_SERVER_MAX_SESSIONS)
+   if(i >= context->numSessions)
    {
       //Any DTLS session available for use in the table?
       if(firstFreeSession != NULL)
@@ -294,8 +312,7 @@ error_t coapServerDemultiplexSession(CoapServerContext *context)
       }
 
       //Process the new connection attempt
-      error = coapServerAcceptSession(context, session, &context->clientIpAddr,
-         context->clientPort);
+      error = coapServerAcceptSession(context, session);
    }
 
    //Return status code
@@ -310,8 +327,38 @@ error_t coapServerDemultiplexSession(CoapServerContext *context)
 
 void coapServerDeleteSession(CoapDtlsSession *session)
 {
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   uint_t i;
+   CoapServerContext *context;
+   CoapObserver *observer;
+
+   //Point to the CoAP server context
+   context = session->context;
+
+   //Loop through the list of registered observers
+   for(i = 0; i < context->numObservers; i++)
+   {
+      //Point to the current entry
+      observer = &context->observers[i];
+
+      //Valid entry?
+      if(observer->state != COAP_OBSERVER_STATE_UNREGISTERED)
+      {
+         //Check whether a matching entry exists in the list
+         if(observer->interface == session->interface &&
+            ipCompAddr(&observer->serverIpAddr, &session->serverIpAddr) &&
+            ipCompAddr(&observer->clientIpAddr, &session->clientIpAddr) &&
+            observer->clientPort == session->clientPort)
+         {
+            //Remove the entry from the list of observers
+            coapServerDeleteObserver(observer);
+         }
+      }
+   }
+#endif
+
    //Debug message
-   TRACE_INFO("CoAP Server: DTLS session closed...\r\n");
+   TRACE_INFO("CoAP Server: closing DTLS session...\r\n");
 
    //Valid DTLS context?
    if(session->dtlsContext != NULL)
@@ -337,6 +384,7 @@ error_t coapServerSendCallback(void *handle, const void *data,
    size_t length, size_t *written, uint_t flags)
 {
    error_t error;
+   SocketMsg msg;
    CoapServerContext *context;
    CoapDtlsSession *session;
 
@@ -345,9 +393,29 @@ error_t coapServerSendCallback(void *handle, const void *data,
    //Point to the CoAP server context
    context = session->context;
 
+   //Point to the send buffer
+   msg = SOCKET_DEFAULT_MSG;
+   msg.data = (void *) data;
+   msg.length = length;
+
+   //Set the source and destination IP addresses
+   msg.interface = session->interface;
+   msg.srcIpAddr = session->serverIpAddr;
+   msg.destIpAddr = session->clientIpAddr;
+   msg.destPort = session->clientPort;
+
    //Send datagram
-   error = socketSendTo(context->socket, &session->clientIpAddr,
-      session->clientPort, data, length, written, flags);
+   error = socketSendMsg(context->socket, &msg, flags);
+
+   //Check status code
+   if(!error)
+   {
+      //Total number of data bytes successfully transmitted
+      if(written != NULL)
+      {
+         *written = msg.length;
+      }
+   }
 
    //Return status code
    return error;
@@ -383,9 +451,10 @@ error_t coapServerReceiveCallback(void *handle, void *data,
    if(context->bufferLen > 0)
    {
       //Pass incoming datagram to the proper connection
-      if(ipCompAddr(&context->serverIpAddr, &session->serverIpAddr) &&
-         ipCompAddr(&context->clientIpAddr, &session->clientIpAddr) &&
-         context->clientPort == session->clientPort)
+      if(context->localInterface == session->interface &&
+         ipCompAddr(&context->localIpAddr, &session->serverIpAddr) &&
+         ipCompAddr(&context->remoteIpAddr, &session->clientIpAddr) &&
+         context->remotePort == session->clientPort)
       {
          //Make sure the length of the datagram is acceptable
          if(context->bufferLen < size)

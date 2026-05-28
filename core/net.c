@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -1607,7 +1607,7 @@ error_t netStopInterface(NetInterface *interface)
 
 
 /**
- * @brief TCP/IP events handling
+ * @brief TCP/IP core task
  * @param[in] context Pointer to the TCP/IP stack context
  **/
 

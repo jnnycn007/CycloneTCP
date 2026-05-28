@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -225,7 +225,7 @@ error_t mimxrt1170Eth3Init(NetInterface *interface)
    ENET_QOS->DMA_CH[0].DMA_CHX_INT_EN = ENET_QOS_DMA_CHX_INT_EN_NIE_MASK |
       ENET_QOS_DMA_CHX_INT_EN_RIE_MASK | ENET_QOS_DMA_CHX_INT_EN_TIE_MASK;
 
-   //Set priority grouping (3 bits for pre-emption priority, no bits for subpriority)
+   //Set priority grouping (4 bits for pre-emption priority, no bits for subpriority)
    NVIC_SetPriorityGrouping(MIMXRT1170_ETH3_IRQ_PRIORITY_GROUPING);
 
    //Configure ENET_QOS interrupt priority

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -156,11 +156,10 @@ error_t modbusClientEstablishConnection(ModbusClientContext *context,
       if(error)
          return error;
 
-      //Save TLS session
-      error = tlsSaveSessionState(context->tlsContext, &context->tlsSession);
-      //Any error to report?
-      if(error)
-         return error;
+      //At any time after the server has received the client Finished
+      //message, it may send a NewSessionTicket message (refer to RFC 8446,
+      //section 4.6.1)
+      context->tlsSessionSaved = FALSE;
    }
 #endif
 
@@ -287,6 +286,23 @@ error_t modbusClientReceiveData(ModbusClientContext *context, void *data,
    {
       //Receive TLS-encrypted data
       error = tlsRead(context->tlsContext, data, size, received, flags);
+
+      //Check status code
+      if(!error)
+      {
+         //At any time after the server has received the client Finished
+         //message, it may send a NewSessionTicket message (refer to RFC 8446,
+         //section 4.6.1)
+         if(!context->tlsSessionSaved)
+         {
+            //Save TLS session
+            error = tlsSaveSessionState(context->tlsContext,
+               &context->tlsSession);
+
+            //Update flag
+            context->tlsSessionSaved = TRUE;
+         }
+      } 
    }
    else
 #endif

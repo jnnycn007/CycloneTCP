@@ -1,6 +1,6 @@
 /**
- * @file mcxe247_eth_driver.h
- * @brief NXP MCX E247 Ethernet MAC driver
+ * @file mcxe24_eth_driver.h
+ * @brief NXP MCX E24 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,62 +25,62 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
-#ifndef _MCXE247_ETH_DRIVER_H
-#define _MCXE247_ETH_DRIVER_H
+#ifndef _MCXE24_ETH_DRIVER_H
+#define _MCXE24_ETH_DRIVER_H
 
 //Dependencies
 #include "core/nic.h"
 
 //Number of TX buffers
-#ifndef MCXE247_ETH_TX_BUFFER_COUNT
-   #define MCXE247_ETH_TX_BUFFER_COUNT 3
-#elif (MCXE247_ETH_TX_BUFFER_COUNT < 1)
-   #error MCXE247_ETH_TX_BUFFER_COUNT parameter is not valid
+#ifndef MCXE24_ETH_TX_BUFFER_COUNT
+   #define MCXE24_ETH_TX_BUFFER_COUNT 3
+#elif (MCXE24_ETH_TX_BUFFER_COUNT < 1)
+   #error MCXE24_ETH_TX_BUFFER_COUNT parameter is not valid
 #endif
 
 //TX buffer size
-#ifndef MCXE247_ETH_TX_BUFFER_SIZE
-   #define MCXE247_ETH_TX_BUFFER_SIZE 1536
-#elif (MCXE247_ETH_TX_BUFFER_SIZE != 1536)
-   #error MCXE247_ETH_TX_BUFFER_SIZE parameter is not valid
+#ifndef MCXE24_ETH_TX_BUFFER_SIZE
+   #define MCXE24_ETH_TX_BUFFER_SIZE 1536
+#elif (MCXE24_ETH_TX_BUFFER_SIZE != 1536)
+   #error MCXE24_ETH_TX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Number of RX buffers
-#ifndef MCXE247_ETH_RX_BUFFER_COUNT
-   #define MCXE247_ETH_RX_BUFFER_COUNT 6
-#elif (MCXE247_ETH_RX_BUFFER_COUNT < 1)
-   #error MCXE247_ETH_RX_BUFFER_COUNT parameter is not valid
+#ifndef MCXE24_ETH_RX_BUFFER_COUNT
+   #define MCXE24_ETH_RX_BUFFER_COUNT 6
+#elif (MCXE24_ETH_RX_BUFFER_COUNT < 1)
+   #error MCXE24_ETH_RX_BUFFER_COUNT parameter is not valid
 #endif
 
 //RX buffer size
-#ifndef MCXE247_ETH_RX_BUFFER_SIZE
-   #define MCXE247_ETH_RX_BUFFER_SIZE 1536
-#elif (MCXE247_ETH_RX_BUFFER_SIZE != 1536)
-   #error MCXE247_ETH_RX_BUFFER_SIZE parameter is not valid
+#ifndef MCXE24_ETH_RX_BUFFER_SIZE
+   #define MCXE24_ETH_RX_BUFFER_SIZE 1536
+#elif (MCXE24_ETH_RX_BUFFER_SIZE != 1536)
+   #error MCXE24_ETH_RX_BUFFER_SIZE parameter is not valid
 #endif
 
 //Interrupt priority grouping
-#ifndef MCXE247_ETH_IRQ_PRIORITY_GROUPING
-   #define MCXE247_ETH_IRQ_PRIORITY_GROUPING 3
-#elif (MCXE247_ETH_IRQ_PRIORITY_GROUPING < 0)
-   #error MCXE247_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
+#ifndef MCXE24_ETH_IRQ_PRIORITY_GROUPING
+   #define MCXE24_ETH_IRQ_PRIORITY_GROUPING 3
+#elif (MCXE24_ETH_IRQ_PRIORITY_GROUPING < 0)
+   #error MCXE24_ETH_IRQ_PRIORITY_GROUPING parameter is not valid
 #endif
 
 //Ethernet interrupt group priority
-#ifndef MCXE247_ETH_IRQ_GROUP_PRIORITY
-   #define MCXE247_ETH_IRQ_GROUP_PRIORITY 12
-#elif (MCXE247_ETH_IRQ_GROUP_PRIORITY < 0)
-   #error MCXE247_ETH_IRQ_GROUP_PRIORITY parameter is not valid
+#ifndef MCXE24_ETH_IRQ_GROUP_PRIORITY
+   #define MCXE24_ETH_IRQ_GROUP_PRIORITY 12
+#elif (MCXE24_ETH_IRQ_GROUP_PRIORITY < 0)
+   #error MCXE24_ETH_IRQ_GROUP_PRIORITY parameter is not valid
 #endif
 
 //Ethernet interrupt subpriority
-#ifndef MCXE247_ETH_IRQ_SUB_PRIORITY
-   #define MCXE247_ETH_IRQ_SUB_PRIORITY 0
-#elif (MCXE247_ETH_IRQ_SUB_PRIORITY < 0)
-   #error MCXE247_ETH_IRQ_SUB_PRIORITY parameter is not valid
+#ifndef MCXE24_ETH_IRQ_SUB_PRIORITY
+   #define MCXE24_ETH_IRQ_SUB_PRIORITY 0
+#elif (MCXE24_ETH_IRQ_SUB_PRIORITY < 0)
+   #error MCXE24_ETH_IRQ_SUB_PRIORITY parameter is not valid
 #endif
 
 //Enhanced transmit buffer descriptor
@@ -144,35 +144,35 @@
 extern "C" {
 #endif
 
-//MCX E247 Ethernet MAC driver
-extern const NicDriver mcxe247EthDriver;
+//MCX E24 Ethernet MAC driver
+extern const NicDriver mcxe24EthDriver;
 
-//MCX E247 Ethernet MAC related functions
-error_t mcxe247EthInit(NetInterface *interface);
-void mcxe247EthInitGpio(NetInterface *interface);
-void mcxe247EthInitBufferDesc(NetInterface *interface);
+//MCX E24 Ethernet MAC related functions
+error_t mcxe24EthInit(NetInterface *interface);
+void mcxe24EthInitGpio(NetInterface *interface);
+void mcxe24EthInitBufferDesc(NetInterface *interface);
 
-void mcxe247EthTick(NetInterface *interface);
+void mcxe24EthTick(NetInterface *interface);
 
-void mcxe247EthEnableIrq(NetInterface *interface);
-void mcxe247EthDisableIrq(NetInterface *interface);
-void mcxe247EthEventHandler(NetInterface *interface);
+void mcxe24EthEnableIrq(NetInterface *interface);
+void mcxe24EthDisableIrq(NetInterface *interface);
+void mcxe24EthEventHandler(NetInterface *interface);
 
-error_t mcxe247EthSendPacket(NetInterface *interface,
+error_t mcxe24EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary);
 
-error_t mcxe247EthReceivePacket(NetInterface *interface);
+error_t mcxe24EthReceivePacket(NetInterface *interface);
 
-error_t mcxe247EthUpdateMacAddrFilter(NetInterface *interface);
-error_t mcxe247EthUpdateMacConfig(NetInterface *interface);
+error_t mcxe24EthUpdateMacAddrFilter(NetInterface *interface);
+error_t mcxe24EthUpdateMacConfig(NetInterface *interface);
 
-void mcxe247EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxe24EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data);
 
-uint16_t mcxe247EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxe24EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr);
 
-uint32_t mcxe247EthCalcCrc(const void *data, size_t length);
+uint32_t mcxe24EthCalcCrc(const void *data, size_t length);
 
 //C++ guard
 #ifdef __cplusplus

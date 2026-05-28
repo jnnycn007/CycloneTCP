@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -66,39 +66,57 @@ error_t httpCheckCharset(const char_t *s, size_t length, uint_t charset)
 
       //Check if character is a control character
       if(iscntrl(c))
+      {
          m |= HTTP_CHARSET_CTL;
+      }
 
       //Check if character is printable
       if(isprint(c) && c <= 126)
+      {
          m |= HTTP_CHARSET_TEXT | HTTP_CHARSET_VCHAR;
+      }
 
       //Check if character is blank
       if(c == ' ' || c == '\t')
+      {
          m |= HTTP_CHARSET_TEXT | HTTP_CHARSET_LWS;
+      }
 
       //Check if character is alphabetic
       if(isalpha(c))
+      {
          m |= HTTP_CHARSET_TCHAR | HTTP_CHARSET_ALPHA;
+      }
 
       //Check if character is decimal digit
       if(osIsdigit(c))
+      {
          m |= HTTP_CHARSET_TCHAR | HTTP_CHARSET_DIGIT;
+      }
 
       //Check if character is hexadecimal digit
       if(isxdigit(c))
+      {
          m |= HTTP_CHARSET_HEX;
+      }
 
       //Check if character is in the extended character set
       if(c >= 128)
+      {
          m |= HTTP_CHARSET_TEXT | HTTP_CHARSET_OBS_TEXT;
+      }
 
       //Check if character is a token character
       if(osStrchr("!#$%&'*+-.^_`|~", c))
+      {
          m |= HTTP_CHARSET_TCHAR;
+      }
 
       //Invalid character?
       if((m & charset) == 0)
+      {
          error = ERROR_INVALID_SYNTAX;
+      }
    }
 
    //Return status code
@@ -338,7 +356,9 @@ error_t httpParseParam(const char_t **pos, HttpParam *param)
 
       //Point to the next character of the string
       if(error == ERROR_IN_PROGRESS)
+      {
          i++;
+      }
    }
 
    //Check whether the parameter value is a quoted string

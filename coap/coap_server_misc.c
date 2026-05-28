@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -34,6 +34,7 @@
 //Dependencies
 #include <stdlib.h>
 #include "coap/coap_server.h"
+#include "coap/coap_server_observe.h"
 #include "coap/coap_server_transport.h"
 #include "coap/coap_server_misc.h"
 #include "coap/coap_common.h"
@@ -55,22 +56,23 @@ void coapServerTick(CoapServerContext *context)
    error_t error;
    uint_t i;
    systime_t time;
+   TlsState state;
    CoapDtlsSession *session;
 
    //Get current time
    time = osGetSystemTime();
 
    //Loop through DTLS sessions
-   for(i = 0; i < COAP_SERVER_MAX_SESSIONS; i++)
+   for(i = 0; i < context->numSessions; i++)
    {
       //Point to the current DTLS session
-      session = &context->session[i];
+      session = &context->sessions[i];
 
       //Valid DTLS session?
       if(session->dtlsContext != NULL)
       {
          //Implementations should limit the lifetime of established sessions
-         if(timeCompare(time, session->timestamp + COAP_SERVER_SESSION_TIMEOUT) >= 0)
+         if((time - session->timestamp) >= COAP_SERVER_SESSION_TIMEOUT)
          {
             //Debug message
             TRACE_INFO("CoAP Server: DTLS session timeout!\r\n");
@@ -82,8 +84,20 @@ void coapServerTick(CoapServerContext *context)
          }
          else
          {
-            //Continue DTLS handshake
-            error = tlsConnect(session->dtlsContext);
+            //Retrieve current state
+            state = tlsGetState(session->dtlsContext);
+
+            //DTLS handshake in progress?
+            if(state < TLS_STATE_APPLICATION_DATA)
+            {
+               //Continue DTLS handshake
+               error = tlsConnect(session->dtlsContext);
+            }
+            else
+            {
+               //Handle periodic operations
+               error = tlsTick(session->dtlsContext);
+            }
 
             //Any error to report?
             if(error != NO_ERROR &&
@@ -100,22 +114,26 @@ void coapServerTick(CoapServerContext *context)
       }
    }
 #endif
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+   //Process observe-related events
+   coapServerProcessObserveEvents(context);
+#endif
 }
 
 
 /**
- * @brief Process CoAP request
+ * @brief Process CoAP message
  * @param[in] context Pointer to the CoAP server context
  * @param[in] data Pointer to the incoming CoAP message
  * @param[in] length Length of the CoAP message, in bytes
  * @return Error code
  **/
 
-error_t coapServerProcessRequest(CoapServerContext *context,
+error_t coapServerProcessMessage(CoapServerContext *context,
    const uint8_t *data, size_t length)
 {
    error_t error;
-   CoapCode code;
    CoapMessageType type;
 
    //Check the length of the CoAP message
@@ -145,68 +163,44 @@ error_t coapServerProcessRequest(CoapServerContext *context,
       //Dump the contents of the message for debugging purpose
       coapDumpMessage(context->request.buffer, context->request.length);
 
-      //Retrieve message type and method code
+      //Retrieve message type
       coapGetType(&context->request, &type);
-      coapGetCode(&context->request, &code);
 
-      //Initialize CoAP response message
-      coapServerInitResponse(context);
-
-      //Check the type of the request
+      //Check the type of the message
       if(type == COAP_TYPE_CON || type == COAP_TYPE_NON)
       {
-         //Check message code
-         if(code == COAP_CODE_GET ||
-            code == COAP_CODE_POST ||
-            code == COAP_CODE_PUT ||
-            code == COAP_CODE_DELETE ||
-            code == COAP_CODE_FETCH ||
-            code == COAP_CODE_PATCH ||
-            code == COAP_CODE_IPATCH)
-         {
-            //Reconstruct the path component from Uri-Path options
-            coapJoinRepeatableOption(&context->request, COAP_OPT_URI_PATH,
-               context->uri, COAP_SERVER_MAX_URI_LEN, '/');
-
-            //If the resource name is the empty string, set it to a single "/"
-            //character (refer to RFC 7252, section 6.5)
-            if(context->uri[0] == '\0')
-            {
-               osStrcpy(context->uri, "/");
-            }
-
-            //Any registered callback?
-            if(context->requestCallback != NULL)
-            {
-               //Invoke user callback function
-               error = context->requestCallback(context, code, context->uri);
-            }
-            else
-            {
-               //Generate a 4.04 piggybacked response
-               error = coapSetCode(&context->response, COAP_CODE_NOT_FOUND);
-            }
-         }
-         else if(code == COAP_CODE_EMPTY)
-         {
-            //Provoking a Reset message by sending an Empty Confirmable message
-            //can be used to check of the liveness of an endpoint (refer to
-            //RFC 7252, section 4.3)
-            error = coapServerRejectRequest(context);
-         }
-         else
-         {
-            //A request with an unrecognized or unsupported method code must
-            //generate a 4.05 piggybacked response (refer to RFC 7252, section
-            //5.8)
-            error = coapSetCode(&context->response, COAP_CODE_METHOD_NOT_ALLOWED);
-         }
+         //CoAP requests are carried in Confirmable or non-confirmable messages
+         error = coapServerProcessRequest(context);
+      }
+      else if(type == COAP_TYPE_ACK)
+      {
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+         //An Acknowledgement message acknowledges that a specific Confirmable
+         //message arrived
+         error = coapServerProcessAck(context);
+#else
+         //Recipients of Acknowledgement and Reset messages must not respond
+         //with either Acknowledgement or Reset messages
+         error = ERROR_INVALID_MESSAGE;
+#endif
+      }
+      else if(type == COAP_TYPE_RST)
+      {
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+         //A Reset message indicates that a specific message (Confirmable or
+         //Non-confirmable) was received, but some context is missing to
+         //properly process it
+         error = coapServerProcessReset(context);
+#else
+         //Recipients of Acknowledgement and Reset messages must not respond
+         //with either Acknowledgement or Reset messages
+         error = ERROR_INVALID_MESSAGE;
+#endif
       }
       else
       {
-         //Recipients of Acknowledgement and Reset messages must not respond
-         //with either Acknowledgement or Reset messages
-         error = ERROR_INVALID_REQUEST;
+         //Invalid message type
+         error = ERROR_INVALID_MESSAGE;
       }
    }
    else if(error == ERROR_INVALID_HEADER || error == ERROR_INVALID_VERSION)
@@ -238,6 +232,97 @@ error_t coapServerProcessRequest(CoapServerContext *context,
          error = coapServerSendResponse(context, context->response.buffer,
             context->response.length);
       }
+   }
+
+   //Return status code
+   return error;
+}
+
+
+/**
+ * @brief Process CoAP request
+ * @param[in] context Pointer to the CoAP server context
+ * @return Error code
+ **/
+
+error_t coapServerProcessRequest(CoapServerContext *context)
+{
+   error_t error;
+   CoapCode code;
+
+   //Initialize CoAP response
+   coapServerInitResponse(context);
+
+   //The Code field 8-bit unsigned integer, split into a 3-bit class (most
+   //significant bits) and a 5-bit detail (least significant bits)
+   coapGetCode(&context->request, &code);
+
+   //In case of a request, the Code field indicates the request method
+   if(code == COAP_CODE_GET ||
+      code == COAP_CODE_POST ||
+      code == COAP_CODE_PUT ||
+      code == COAP_CODE_DELETE ||
+      code == COAP_CODE_FETCH ||
+      code == COAP_CODE_PATCH ||
+      code == COAP_CODE_IPATCH)
+   {
+      //Reconstruct the path component from Uri-Path options
+      coapJoinRepeatableOption(&context->request, COAP_OPT_URI_PATH,
+         context->uri, COAP_SERVER_MAX_URI_LEN, '/');
+
+      //If the resource name is the empty string, set it to a single "/"
+      //character (refer to RFC 7252, section 6.5)
+      if(context->uri[0] == '\0')
+      {
+         osStrcpy(context->uri, "/");
+      }
+
+      //Initialize status code
+      error = ERROR_NOT_FOUND;
+
+#if (COAP_SERVER_OBSERVE_SUPPORT == ENABLED)
+      //GET request?
+      if(code == COAP_CODE_GET)
+      {
+         //A client registers its interest in a resource by initiating an
+         //extended GET request to the server. In addition to returning a
+         //representation of the target resource, this request causes the
+         //server to add the client to the list of observers of the resource
+         error = coapServerProcessRegistrationRequest(context);
+      }
+#endif
+
+      //Check status code
+      if(error == ERROR_NOT_FOUND)
+      {
+         //Any registered callback?
+         if(context->requestCallback != NULL)
+         {
+            //Invoke user callback function
+            error = context->requestCallback(context, code, context->uri);
+         }
+      }
+
+      //Check status code
+      if(error == ERROR_NOT_FOUND)
+      {
+         //Generate a 4.04 piggybacked response
+         error = coapSetCode(&context->response, COAP_CODE_NOT_FOUND);
+      }
+   }
+   else if(code == COAP_CODE_EMPTY)
+   {
+      //Provoking a Reset message by sending an Empty Confirmable message
+      //can be used to check of the liveness of an endpoint (refer to
+      //RFC 7252, section 4.3)
+      error = coapServerRejectRequest(context);
+   }
+   else
+   {
+      //A request with an unrecognized or unsupported method code must
+      //generate a 4.05 piggybacked response (refer to RFC 7252, section
+      //5.8)
+      error = coapSetCode(&context->response, COAP_CODE_METHOD_NOT_ALLOWED);
    }
 
    //Return status code
@@ -281,8 +366,8 @@ error_t coapServerRejectRequest(CoapServerContext *context)
    }
    else
    {
-      //Rejecting an Acknowledgment or Reset message is effected by
-      //silently ignoring it (refer to RFC 7252, section 4.2)
+      //Rejecting an Acknowledgment or Reset message is effected by silently
+      //ignoring it (refer to RFC 7252, section 4.2)
       context->response.length = 0;
    }
 
@@ -292,7 +377,7 @@ error_t coapServerRejectRequest(CoapServerContext *context)
 
 
 /**
- * @brief Initialize CoAP response message
+ * @brief Initialize CoAP response
  * @param[in] context Pointer to the CoAP server context
  * @return Error code
  **/
@@ -358,18 +443,19 @@ error_t coapServerSendResponse(CoapServerContext *context,
       CoapDtlsSession *session;
 
       //Loop through DTLS sessions
-      for(i = 0; i < COAP_SERVER_MAX_SESSIONS; i++)
+      for(i = 0; i < context->numSessions; i++)
       {
          //Point to the current DTLS session
-         session = &context->session[i];
+         session = &context->sessions[i];
 
          //Valid DTLS session?
          if(session->dtlsContext != NULL)
          {
             //Matching DTLS session?
-            if(ipCompAddr(&session->serverIpAddr, &context->serverIpAddr) &&
-               ipCompAddr(&session->clientIpAddr, &context->clientIpAddr) &&
-               session->clientPort == context->clientPort)
+            if(session->interface == context->localInterface &&
+               ipCompAddr(&session->serverIpAddr, &context->localIpAddr) &&
+               ipCompAddr(&session->clientIpAddr, &context->remoteIpAddr) &&
+               session->clientPort == context->remotePort)
             {
                break;
             }
@@ -377,7 +463,7 @@ error_t coapServerSendResponse(CoapServerContext *context,
       }
 
       //Any matching DTLS session?
-      if(i < COAP_SERVER_MAX_SESSIONS)
+      if(i < context->numSessions)
       {
          //Send DTLS datagram
          error = tlsWrite(session->dtlsContext, data, length, NULL, 0);
@@ -391,9 +477,21 @@ error_t coapServerSendResponse(CoapServerContext *context,
    else
 #endif
    {
-      //Send UDP datagram
-      error = socketSendTo(context->socket, &context->clientIpAddr,
-         context->clientPort, data, length, NULL, 0);
+      SocketMsg msg;
+
+      //Point to the send buffer
+      msg = SOCKET_DEFAULT_MSG;
+      msg.data = (void *) data;
+      msg.length = length;
+
+      //Set the source and destination IP addresses
+      msg.interface = context->localInterface;
+      msg.srcIpAddr = context->localIpAddr;
+      msg.destIpAddr = context->remoteIpAddr;
+      msg.destPort = context->remotePort;
+
+      //Send datagram
+      error = socketSendMsg(context->socket, &msg, 0);
    }
 
    //Return status code

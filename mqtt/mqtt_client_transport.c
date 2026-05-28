@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -274,13 +274,6 @@ error_t mqttClientEstablishConnection(MqttClientContext *context,
       {
          //Perform TLS handshake
          error = tlsConnect(context->tlsContext);
-      }
-
-      //Successful connection?
-      if(!error)
-      {
-         //Save TLS session
-         error = tlsSaveSessionState(context->tlsContext, &context->tlsSession);
       }
    }
 #endif
@@ -714,6 +707,33 @@ error_t mqttClientWaitForData(MqttClientContext *context, systime_t timeout)
    {
       return ERROR_TIMEOUT;
    }
+}
+
+
+/**
+ * @brief Save TLS session
+ * @param[in] context Pointer to the MQTT client context
+ * @return Error code
+ **/
+
+error_t mqttClientSaveSession(MqttClientContext *context)
+{
+   error_t error;
+
+   //Initialize status code
+   error = NO_ERROR;
+
+#if (MQTT_CLIENT_TLS_SUPPORT == ENABLED)
+   //TLS transport protocol?
+   if(context->settings.transportProtocol == MQTT_TRANSPORT_PROTOCOL_TLS)
+   {
+      //Save TLS session
+      error = tlsSaveSessionState(context->tlsContext, &context->tlsSession);
+   }
+#endif
+
+   //Return status code
+   return error;
 }
 
 #endif

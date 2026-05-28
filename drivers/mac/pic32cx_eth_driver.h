@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _PIC32CX_ETH_DRIVER_H
@@ -117,6 +117,87 @@
 #define GMAC_RX_LENGTH_MSB     0x00002000
 #define GMAC_RX_BAD_FCS        0x00002000
 #define GMAC_RX_LENGTH         0x00001FFF
+
+//Processor-specific definitions
+#if defined(__PIC32CX2051BZ62132__) || defined(__PIC32CX2051BZ62132__)
+   //GMAC interrupt
+   #define GMAC_IRQn             ETH_IRQn
+   #define GMAC_Handler          ETH_Handler
+
+   //GMAC peripheral base address
+   #define GMAC_REGS             ETH_REGS
+
+   //GMAC registers
+   #define GMAC_NCR              ETH_NCR
+   #define GMAC_NCFGR            ETH_NCFGR
+   #define GMAC_NSR              ETH_NSR
+   #define GMAC_TSR              ETH_TSR
+   #define GMAC_RBQB             ETH_RBQB
+   #define GMAC_TBQB             ETH_TBQB
+   #define GMAC_RSR              ETH_RSR
+   #define GMAC_ISR              ETH_ISR
+   #define GMAC_IER              ETH_IER
+   #define GMAC_IDR              ETH_IDR
+   #define GMAC_MAN              ETH_MAN
+   #define GMAC_HRB              ETH_HRB
+   #define GMAC_HRT              ETH_HRT
+   #define GMAC_SAB              ETH_SAB
+   #define GMAC_SAT              ETH_SAT
+
+   //GMAC_NCR register
+   #define GMAC_NCR_TSTART_Msk   ETH_NCR_TSTART_Msk
+   #define GMAC_NCR_MPE_Msk      ETH_NCR_MPE_Msk
+   #define GMAC_NCR_TXEN_Msk     ETH_NCR_TXEN_Msk
+   #define GMAC_NCR_RXEN_Msk     ETH_NCR_RXEN_Msk
+
+   //GMAC_NCFGR register
+   #define GMAC_NCFGR_DBW        ETH_NCFGR_DBW
+   #define GMAC_NCFGR_CLK        ETH_NCFGR_CLK
+   #define GMAC_NCFGR_GIGE_Msk   ETH_NCFGR_GIGE_Msk
+   #define GMAC_NCFGR_MAXFS_Msk  ETH_NCFGR_MAXFS_Msk
+   #define GMAC_NCFGR_UNIHEN_Msk ETH_NCFGR_UNIHEN_Msk
+   #define GMAC_NCFGR_MTIHEN_Msk ETH_NCFGR_MTIHEN_Msk
+   #define GMAC_NCFGR_FD_Msk     ETH_NCFGR_FD_Msk
+   #define GMAC_NCFGR_SPD_Msk    ETH_NCFGR_SPD_Msk
+
+   //GMAC_NSR register
+   #define GMAC_NSR_IDLE_Msk     ETH_NSR_IDLE_Msk
+
+   //GMAC_TSR register
+   #define GMAC_TSR_HRESP_Msk    ETH_TSR_HRESP_Msk
+   #define GMAC_TSR_UND_Msk      ETH_TSR_UND_Msk
+   #define GMAC_TSR_TXCOMP_Msk   ETH_TSR_TXCOMP_Msk
+   #define GMAC_TSR_TFC_Msk      ETH_TSR_TFC_Msk
+   #define GMAC_TSR_TXGO_Msk     ETH_TSR_TXGO_Msk
+   #define GMAC_TSR_RLE_Msk      ETH_TSR_RLE_Msk
+   #define GMAC_TSR_COL_Msk      ETH_TSR_COL_Msk
+   #define GMAC_TSR_UBR_Msk      ETH_TSR_UBR_Msk
+
+   //GMAC_RSR register
+   #define GMAC_RSR_HNO_Msk      ETH_RSR_HNO_Msk
+   #define GMAC_RSR_RXOVR_Msk    ETH_RSR_RXOVR_Msk
+   #define GMAC_RSR_REC_Msk      ETH_RSR_REC_Msk
+   #define GMAC_RSR_BNA_Msk      ETH_RSR_BNA_Msk
+
+   //GMAC_IER register
+   #define GMAC_IER_HRESP_Msk    ETH_IER_HRESP_Msk
+   #define GMAC_IER_ROVR_Msk     ETH_IER_ROVR_Msk
+   #define GMAC_IER_TCOMP_Msk    ETH_IER_TCOMP_Msk
+   #define GMAC_IER_TFC_Msk      ETH_IER_TFC_Msk
+   #define GMAC_IER_RLEX_Msk     ETH_IER_RLEX_Msk
+   #define GMAC_IER_TUR_Msk      ETH_IER_TUR_Msk
+   #define GMAC_IER_RXUBR_Msk    ETH_IER_RXUBR_Msk
+   #define GMAC_IER_RCOMP_Msk    ETH_IER_RCOMP_Msk
+
+   //GMAC_MAN register
+   #define GMAC_MAN_CLTTO_Msk    ETH_MAN_CLTTO_Msk
+   #define GMAC_MAN_OP           ETH_MAN_OP
+   #define GMAC_MAN_PHYA         ETH_MAN_PHYA
+   #define GMAC_MAN_REGA         ETH_MAN_REGA
+   #define GMAC_MAN_WTN          ETH_MAN_WTN
+   #define GMAC_MAN_DATA         ETH_MAN_DATA
+   #define GMAC_MAN_DATA_Msk     ETH_MAN_DATA_Msk
+#endif
 
 //C++ guard
 #ifdef __cplusplus

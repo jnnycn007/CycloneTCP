@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 #ifndef _M467_ETH_DRIVER_H
@@ -147,7 +147,7 @@
 #define EMAC_HW_FEATURE                                     *((volatile uint32_t *) (EMAC_BASE + 0x1058))
 
 //MAC Configuration register
-#define EMAC_MAC_CONFIG_SARC                                0xF0000000
+#define EMAC_MAC_CONFIG_SARC                                0x70000000
 #define EMAC_MAC_CONFIG_TWOKPE                              0x08000000
 #define EMAC_MAC_CONFIG_CST                                 0x02000000
 #define EMAC_MAC_CONFIG_WD                                  0x00800000
@@ -155,6 +155,7 @@
 #define EMAC_MAC_CONFIG_JE                                  0x00100000
 #define EMAC_MAC_CONFIG_IFG                                 0x000E0000
 #define EMAC_MAC_CONFIG_DCRS                                0x00010000
+#define EMAC_MAC_CONFIG_RESERVED15                          0x00008000
 #define EMAC_MAC_CONFIG_FES                                 0x00004000
 #define EMAC_MAC_CONFIG_DO                                  0x00002000
 #define EMAC_MAC_CONFIG_LM                                  0x00001000

@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -150,9 +150,6 @@ error_t modbusServerInit(ModbusServerContext *context,
    context->timeout = settings->timeout;
    context->openCallback = settings->openCallback;
    context->closeCallback = settings->closeCallback;
-#if (MODBUS_SERVER_TLS_SUPPORT == ENABLED)
-   context->tlsInitCallback = settings->tlsInitCallback;
-#endif
    context->lockCallback = settings->lockCallback;
    context->unlockCallback = settings->unlockCallback;
    context->readCoilCallback = settings->readCoilCallback;
@@ -164,6 +161,11 @@ error_t modbusServerInit(ModbusServerContext *context,
    context->writeRegCallback = settings->writeRegCallback;
    context->processPduCallback = settings->processPduCallback;
    context->tickCallback = settings->tickCallback;
+
+#if (MODBUS_SERVER_TLS_SUPPORT == ENABLED)
+   //TLS initialization callback
+   context->tlsInitCallback = settings->tlsInitCallback;
+#endif
 
    //Create an event object to poll the state of sockets
    if(!osCreateEvent(&context->event))

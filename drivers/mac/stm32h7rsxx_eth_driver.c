@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -327,31 +327,31 @@ __weak_func void stm32h7rsxxEthInitGpio(NetInterface *interface)
    GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
    GPIO_InitStructure.Pull = GPIO_NOPULL;
    GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-   GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
 
    //Configure ETH_RMII_CRS_DV (PA7)
    GPIO_InitStructure.Pin = GPIO_PIN_7;
+   GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
 
    //Configure ETH_RMII_TXD0 (PB0), ETH_RMII_TXD1 (PB1) and RMII_RX_ER (PB10)
    GPIO_InitStructure.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_10;
+   GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
    HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
 
    //Configure ETH_RMII_RXD0 (PC4) and ETH_RMII_RXD1 (PC5)
    GPIO_InitStructure.Pin = GPIO_PIN_4 | GPIO_PIN_5;
+   GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
    HAL_GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-   //Configure RMII_TX_EN (PG11)
-   GPIO_InitStructure.Pin = GPIO_PIN_11;
-   HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
 
    //Configure ETH_RMII_REF_CLK (PD7)
    GPIO_InitStructure.Pin = GPIO_PIN_7;
-   GPIO_InitStructure.Mode = GPIO_MODE_AF_PP;
-   GPIO_InitStructure.Pull = GPIO_NOPULL;
-   GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
    GPIO_InitStructure.Alternate = GPIO_AF4_ETH;
    HAL_GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+   //Configure RMII_TX_EN (PG11)
+   GPIO_InitStructure.Pin = GPIO_PIN_11;
+   GPIO_InitStructure.Alternate = GPIO_AF11_ETH;
+   HAL_GPIO_Init(GPIOG, &GPIO_InitStructure);
 #endif
 }
 

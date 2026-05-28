@@ -34,7 +34,7 @@
  * - RFC 2428: FTP Extensions for IPv6 and NATs
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -189,13 +189,15 @@ error_t ftpServerInit(FtpServerContext *context,
    context->connections = settings->connections;
    context->connectCallback = settings->connectCallback;
    context->disconnectCallback = settings->disconnectCallback;
-#if (FTP_SERVER_TLS_SUPPORT == ENABLED)
-   context->tlsInitCallback = settings->tlsInitCallback;
-#endif
    context->checkUserCallback = settings->checkUserCallback;
    context->checkPasswordCallback = settings->checkPasswordCallback;
    context->getFilePermCallback = settings->getFilePermCallback;
    context->unknownCommandCallback = settings->unknownCommandCallback;
+
+#if (FTP_SERVER_TLS_SUPPORT == ENABLED)
+   //TLS initialization callback
+   context->tlsInitCallback = settings->tlsInitCallback;
+#endif
 
    //Set root directory
    osStrcpy(context->rootDir, settings->rootDir);

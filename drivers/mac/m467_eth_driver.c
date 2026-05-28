@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -50,10 +50,10 @@ static uint8_t txBuffer[M467_ETH_TX_BUFFER_COUNT][M467_ETH_TX_BUFFER_SIZE];
 #pragma data_alignment = 4
 static uint8_t rxBuffer[M467_ETH_RX_BUFFER_COUNT][M467_ETH_RX_BUFFER_SIZE];
 //Transmit DMA descriptors
-#pragma data_alignment = 4
+#pragma data_alignment = 8
 static M467TxDmaDesc txDmaDesc[M467_ETH_TX_BUFFER_COUNT];
 //Receive DMA descriptors
-#pragma data_alignment = 4
+#pragma data_alignment = 8
 static M467RxDmaDesc rxDmaDesc[M467_ETH_RX_BUFFER_COUNT];
 
 //Keil MDK-ARM or GCC compiler?
@@ -67,10 +67,10 @@ static uint8_t rxBuffer[M467_ETH_RX_BUFFER_COUNT][M467_ETH_RX_BUFFER_SIZE]
    __attribute__((aligned(4)));
 //Transmit DMA descriptors
 static M467TxDmaDesc txDmaDesc[M467_ETH_TX_BUFFER_COUNT]
-   __attribute__((aligned(4)));
+   __attribute__((aligned(8)));
 //Receive DMA descriptors
 static M467RxDmaDesc rxDmaDesc[M467_ETH_RX_BUFFER_COUNT]
-   __attribute__((aligned(4)));
+   __attribute__((aligned(8)));
 
 #endif
 
@@ -163,7 +163,7 @@ error_t m467EthInit(NetInterface *interface)
    }
 
    //Use default MAC configuration
-   EMAC_MAC_CONFIG = EMAC_MAC_CONFIG_DO;
+   EMAC_MAC_CONFIG = EMAC_MAC_CONFIG_RESERVED15 | EMAC_MAC_CONFIG_DO;
 
    //Configure MAC address filtering
    m467EthUpdateMacAddrFilter(interface);
@@ -175,7 +175,7 @@ error_t m467EthInit(NetInterface *interface)
 
    //Configure DMA bus mode
    EMAC_BUS_MODE = EMAC_BUS_MODE_AAB | EMAC_BUS_MODE_USP |
-      EMAC_BUS_MODE_RPBL_1 | EMAC_BUS_MODE_PBL_1 | EMAC_BUS_MODE_ATDS;
+      EMAC_BUS_MODE_RPBL_32 | EMAC_BUS_MODE_PBL_32 | EMAC_BUS_MODE_ATDS;
 
    //Initialize DMA descriptor lists
    m467EthInitDmaDesc(interface);

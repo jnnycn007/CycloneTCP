@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -231,7 +231,7 @@ error_t s32k344EthInit(NetInterface *interface)
    IP_EMAC->DMA_CH0_INTERRUPT_ENABLE = EMAC_DMA_CH0_INTERRUPT_ENABLE_NIE_MASK |
       EMAC_DMA_CH0_INTERRUPT_ENABLE_RIE_MASK | EMAC_DMA_CH0_INTERRUPT_ENABLE_TIE_MASK;
 
-   //Set priority grouping (3 bits for pre-emption priority, no bits for subpriority)
+   //Set priority grouping (4 bits for pre-emption priority, no bits for subpriority)
    NVIC_SetPriorityGrouping(S32K344_ETH_IRQ_PRIORITY_GROUPING);
 
    //Configure Ethernet interrupt priority

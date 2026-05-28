@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -446,14 +446,14 @@ void coapClientDeinit(CoapClientContext *context)
       //Close connection
       coapClientCloseConnection(context);
 
+      //Release previously allocated resources
+      osDeleteMutex(&context->mutex);
+      osDeleteEvent(&context->event);
+
 #if (COAP_CLIENT_DTLS_SUPPORT == ENABLED)
       //Release DTLS session state
       tlsFreeSessionState(&context->dtlsSession);
 #endif
-
-      //Release previously allocated resources
-      osDeleteMutex(&context->mutex);
-      osDeleteEvent(&context->event);
 
       //Clear CoAP client context
       osMemset(context, 0, sizeof(CoapClientContext));

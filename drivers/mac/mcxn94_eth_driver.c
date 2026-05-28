@@ -1,6 +1,6 @@
 /**
- * @file mcxn947_eth_driver.c
- * @brief NXP MCX N947 Ethernet MAC driver
+ * @file mcxn94_eth_driver.c
+ * @brief NXP MCX N94 Ethernet MAC driver
  *
  * @section License
  *
@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -38,7 +38,7 @@
 #include "fsl_port.h"
 #include "fsl_reset.h"
 #include "core/net.h"
-#include "drivers/mac/mcxn947_eth_driver.h"
+#include "drivers/mac/mcxn94_eth_driver.h"
 #include "debug.h"
 
 //Underlying network interface
@@ -49,31 +49,31 @@ static NetInterface *nicDriverInterface;
 
 //Transmit buffer
 #pragma data_alignment = 4
-static uint8_t txBuffer[MCXN947_ETH_TX_BUFFER_COUNT][MCXN947_ETH_TX_BUFFER_SIZE];
+static uint8_t txBuffer[MCXN94_ETH_TX_BUFFER_COUNT][MCXN94_ETH_TX_BUFFER_SIZE];
 //Receive buffer
 #pragma data_alignment = 4
-static uint8_t rxBuffer[MCXN947_ETH_RX_BUFFER_COUNT][MCXN947_ETH_RX_BUFFER_SIZE];
+static uint8_t rxBuffer[MCXN94_ETH_RX_BUFFER_COUNT][MCXN94_ETH_RX_BUFFER_SIZE];
 //Transmit DMA descriptors
 #pragma data_alignment = 4
-static Mcxn947TxDmaDesc txDmaDesc[MCXN947_ETH_TX_BUFFER_COUNT];
+static Mcxn94TxDmaDesc txDmaDesc[MCXN94_ETH_TX_BUFFER_COUNT];
 //Receive DMA descriptors
 #pragma data_alignment = 4
-static Mcxn947RxDmaDesc rxDmaDesc[MCXN947_ETH_RX_BUFFER_COUNT];
+static Mcxn94RxDmaDesc rxDmaDesc[MCXN94_ETH_RX_BUFFER_COUNT];
 
 //Keil MDK-ARM or GCC compiler?
 #else
 
 //Transmit buffer
-static uint8_t txBuffer[MCXN947_ETH_TX_BUFFER_COUNT][MCXN947_ETH_TX_BUFFER_SIZE]
+static uint8_t txBuffer[MCXN94_ETH_TX_BUFFER_COUNT][MCXN94_ETH_TX_BUFFER_SIZE]
    __attribute__((aligned(4)));
 //Receive buffer
-static uint8_t rxBuffer[MCXN947_ETH_RX_BUFFER_COUNT][MCXN947_ETH_RX_BUFFER_SIZE]
+static uint8_t rxBuffer[MCXN94_ETH_RX_BUFFER_COUNT][MCXN94_ETH_RX_BUFFER_SIZE]
    __attribute__((aligned(4)));
 //Transmit DMA descriptors
-static Mcxn947TxDmaDesc txDmaDesc[MCXN947_ETH_TX_BUFFER_COUNT]
+static Mcxn94TxDmaDesc txDmaDesc[MCXN94_ETH_TX_BUFFER_COUNT]
    __attribute__((aligned(4)));
 //Receive DMA descriptors
-static Mcxn947RxDmaDesc rxDmaDesc[MCXN947_ETH_RX_BUFFER_COUNT]
+static Mcxn94RxDmaDesc rxDmaDesc[MCXN94_ETH_RX_BUFFER_COUNT]
    __attribute__((aligned(4)));
 
 #endif
@@ -85,23 +85,23 @@ static uint_t rxIndex;
 
 
 /**
- * @brief MCX N947 Ethernet MAC driver
+ * @brief MCX N94 Ethernet MAC driver
  **/
 
-const NicDriver mcxn947EthDriver =
+const NicDriver mcxn94EthDriver =
 {
    NIC_TYPE_ETHERNET,
    ETH_MTU,
-   mcxn947EthInit,
-   mcxn947EthTick,
-   mcxn947EthEnableIrq,
-   mcxn947EthDisableIrq,
-   mcxn947EthEventHandler,
-   mcxn947EthSendPacket,
-   mcxn947EthUpdateMacAddrFilter,
-   mcxn947EthUpdateMacConfig,
-   mcxn947EthWritePhyReg,
-   mcxn947EthReadPhyReg,
+   mcxn94EthInit,
+   mcxn94EthTick,
+   mcxn94EthEnableIrq,
+   mcxn94EthDisableIrq,
+   mcxn94EthEventHandler,
+   mcxn94EthSendPacket,
+   mcxn94EthUpdateMacAddrFilter,
+   mcxn94EthUpdateMacConfig,
+   mcxn94EthWritePhyReg,
+   mcxn94EthReadPhyReg,
    TRUE,
    TRUE,
    TRUE,
@@ -110,18 +110,18 @@ const NicDriver mcxn947EthDriver =
 
 
 /**
- * @brief MCX N947 Ethernet MAC initialization
+ * @brief MCX N94 Ethernet MAC initialization
  * @param[in] interface Underlying network interface
  * @return Error code
  **/
 
-error_t mcxn947EthInit(NetInterface *interface)
+error_t mcxn94EthInit(NetInterface *interface)
 {
    error_t error;
    uint32_t temp;
 
    //Debug message
-   TRACE_INFO("Initializing MCX N947 Ethernet MAC...\r\n");
+   TRACE_INFO("Initializing MCX N94 Ethernet MAC...\r\n");
 
    //Save underlying network interface
    nicDriverInterface = interface;
@@ -138,7 +138,7 @@ error_t mcxn947EthInit(NetInterface *interface)
    SYSCON0->PRESETCTRL2 &= ~SYSCON_PRESETCTRL2_ENET_RST_MASK;
 
    //GPIO configuration
-   mcxn947EthInitGpio(interface);
+   mcxn94EthInitGpio(interface);
 
    //Perform a software reset
    ENET->DMA_MODE |= ENET_DMA_MODE_SWR_MASK;
@@ -179,7 +179,7 @@ error_t mcxn947EthInit(NetInterface *interface)
 
    //Set the maximum packet size that can be accepted
    temp = ENET->MAC_EXT_CONFIGURATION & ~ENET_MAC_EXT_CONFIGURATION_GPSL_MASK;
-   ENET->MAC_EXT_CONFIGURATION = temp | MCXN947_ETH_RX_BUFFER_SIZE;
+   ENET->MAC_EXT_CONFIGURATION = temp | MCXN94_ETH_RX_BUFFER_SIZE;
 
    //Set the MAC address of the station
    ENET->MAC_ADDRESS0_LOW = interface->macAddr.w[0] | (interface->macAddr.w[1] << 16);
@@ -207,7 +207,7 @@ error_t mcxn947EthInit(NetInterface *interface)
 
    //Configure RX features
    ENET->DMA_CH[0].DMA_CHX_RX_CTRL = ENET_DMA_CH_DMA_CHX_RX_CTRL_RxPBL(32) |
-      ENET_DMA_CH_DMA_CHX_RX_CTRL_RBSZ_13_Y(MCXN947_ETH_RX_BUFFER_SIZE / 4);
+      ENET_DMA_CH_DMA_CHX_RX_CTRL_RBSZ_13_Y(MCXN94_ETH_RX_BUFFER_SIZE / 4);
 
    //Enable store and forward mode for transmission
    ENET->MTL_QUEUE[0].MTL_TXQX_OP_MODE |= ENET_MTL_QUEUE_MTL_TXQX_OP_MODE_TQS(7) |
@@ -219,7 +219,7 @@ error_t mcxn947EthInit(NetInterface *interface)
       ENET_MTL_QUEUE_MTL_RXQX_OP_MODE_RSF_MASK;
 
    //Initialize DMA descriptor lists
-   mcxn947EthInitDmaDesc(interface);
+   mcxn94EthInitDmaDesc(interface);
 
    //Disable MAC interrupts
    ENET->MAC_INTERRUPT_ENABLE = 0;
@@ -229,11 +229,11 @@ error_t mcxn947EthInit(NetInterface *interface)
       ENET_DMA_CH_DMA_CHX_INT_EN_RIE_MASK | ENET_DMA_CH_DMA_CHX_INT_EN_TIE_MASK;
 
    //Set priority grouping (3 bits for pre-emption priority, no bits for subpriority)
-   NVIC_SetPriorityGrouping(MCXN947_ETH_IRQ_PRIORITY_GROUPING);
+   NVIC_SetPriorityGrouping(MCXN94_ETH_IRQ_PRIORITY_GROUPING);
 
    //Configure Ethernet interrupt priority
-   NVIC_SetPriority(ETHERNET_IRQn, NVIC_EncodePriority(MCXN947_ETH_IRQ_PRIORITY_GROUPING,
-      MCXN947_ETH_IRQ_GROUP_PRIORITY, MCXN947_ETH_IRQ_SUB_PRIORITY));
+   NVIC_SetPriority(ETHERNET_IRQn, NVIC_EncodePriority(MCXN94_ETH_IRQ_PRIORITY_GROUPING,
+      MCXN94_ETH_IRQ_GROUP_PRIORITY, MCXN94_ETH_IRQ_SUB_PRIORITY));
 
    //Enable MAC transmission and reception
    ENET->MAC_CONFIGURATION |= ENET_MAC_CONFIGURATION_TE_MASK |
@@ -256,7 +256,7 @@ error_t mcxn947EthInit(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-__weak_func void mcxn947EthInitGpio(NetInterface *interface)
+__weak_func void mcxn94EthInitGpio(NetInterface *interface)
 {
 //FRDM-MCXN947 evaluation board?
 #if defined(USE_FRDM_MCXN947)
@@ -364,12 +364,12 @@ __weak_func void mcxn947EthInitGpio(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxn947EthInitDmaDesc(NetInterface *interface)
+void mcxn94EthInitDmaDesc(NetInterface *interface)
 {
    uint_t i;
 
    //Initialize TX DMA descriptor list
-   for(i = 0; i < MCXN947_ETH_TX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXN94_ETH_TX_BUFFER_COUNT; i++)
    {
       //The descriptor is initially owned by the application
       txDmaDesc[i].tdes0 = 0;
@@ -382,7 +382,7 @@ void mcxn947EthInitDmaDesc(NetInterface *interface)
    txIndex = 0;
 
    //Initialize RX DMA descriptor list
-   for(i = 0; i < MCXN947_ETH_RX_BUFFER_COUNT; i++)
+   for(i = 0; i < MCXN94_ETH_RX_BUFFER_COUNT; i++)
    {
       //The descriptor is initially owned by the DMA
       rxDmaDesc[i].rdes0 = (uint32_t) rxBuffer[i];
@@ -397,17 +397,17 @@ void mcxn947EthInitDmaDesc(NetInterface *interface)
    //Start location of the TX descriptor list
    ENET->DMA_CH[0].DMA_CHX_TXDESC_LIST_ADDR = (uint32_t) &txDmaDesc[0];
    //Length of the transmit descriptor ring
-   ENET->DMA_CH[0].DMA_CHX_TXDESC_RING_LENGTH = MCXN947_ETH_TX_BUFFER_COUNT - 1;
+   ENET->DMA_CH[0].DMA_CHX_TXDESC_RING_LENGTH = MCXN94_ETH_TX_BUFFER_COUNT - 1;
 
    //Start location of the RX descriptor list
    ENET->DMA_CH[0].DMA_CHX_RXDESC_LIST_ADDR = (uint32_t) &rxDmaDesc[0];
    //Length of the receive descriptor ring
-   ENET->DMA_CH[0].DMA_CHX_RX_CONTROL2 = MCXN947_ETH_RX_BUFFER_COUNT - 1;
+   ENET->DMA_CH[0].DMA_CHX_RX_CONTROL2 = MCXN94_ETH_RX_BUFFER_COUNT - 1;
 }
 
 
 /**
- * @brief MCX N947 Ethernet MAC timer handler
+ * @brief MCX N94 Ethernet MAC timer handler
  *
  * This routine is periodically called by the TCP/IP stack to handle periodic
  * operations such as polling the link state
@@ -415,7 +415,7 @@ void mcxn947EthInitDmaDesc(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxn947EthTick(NetInterface *interface)
+void mcxn94EthTick(NetInterface *interface)
 {
    //Valid Ethernet PHY or switch driver?
    if(interface->phyDriver != NULL)
@@ -440,7 +440,7 @@ void mcxn947EthTick(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxn947EthEnableIrq(NetInterface *interface)
+void mcxn94EthEnableIrq(NetInterface *interface)
 {
    //Enable Ethernet MAC interrupts
    NVIC_EnableIRQ(ETHERNET_IRQn);
@@ -468,7 +468,7 @@ void mcxn947EthEnableIrq(NetInterface *interface)
  * @param[in] interface Underlying network interface
  **/
 
-void mcxn947EthDisableIrq(NetInterface *interface)
+void mcxn94EthDisableIrq(NetInterface *interface)
 {
    //Disable Ethernet MAC interrupts
    NVIC_DisableIRQ(ETHERNET_IRQn);
@@ -492,7 +492,7 @@ void mcxn947EthDisableIrq(NetInterface *interface)
 
 
 /**
- * @brief MCX N947 Ethernet MAC interrupt service routine
+ * @brief MCX N94 Ethernet MAC interrupt service routine
  **/
 
 void ETHERNET_IRQHandler(void)
@@ -544,11 +544,11 @@ void ETHERNET_IRQHandler(void)
 
 
 /**
- * @brief MCX N947 Ethernet MAC event handler
+ * @brief MCX N94 Ethernet MAC event handler
  * @param[in] interface Underlying network interface
  **/
 
-void mcxn947EthEventHandler(NetInterface *interface)
+void mcxn94EthEventHandler(NetInterface *interface)
 {
    error_t error;
 
@@ -556,7 +556,7 @@ void mcxn947EthEventHandler(NetInterface *interface)
    do
    {
       //Read incoming packet
-      error = mcxn947EthReceivePacket(interface);
+      error = mcxn94EthReceivePacket(interface);
 
       //No more data in the receive buffer?
    } while(error != ERROR_BUFFER_EMPTY);
@@ -573,7 +573,7 @@ void mcxn947EthEventHandler(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxn947EthSendPacket(NetInterface *interface,
+error_t mcxn94EthSendPacket(NetInterface *interface,
    const NetBuffer *buffer, size_t offset, NetTxAncillary *ancillary)
 {
    size_t length;
@@ -582,7 +582,7 @@ error_t mcxn947EthSendPacket(NetInterface *interface,
    length = netBufferGetLength(buffer) - offset;
 
    //Check the frame length
-   if(length > MCXN947_ETH_TX_BUFFER_SIZE)
+   if(length > MCXN94_ETH_TX_BUFFER_SIZE)
    {
       //The transmitter can accept another packet
       osSetEvent(&interface->nicTxEvent);
@@ -612,7 +612,7 @@ error_t mcxn947EthSendPacket(NetInterface *interface,
    ENET->DMA_CH[0].DMA_CHX_TXDESC_TAIL_PTR = 0;
 
    //Increment index and wrap around if necessary
-   if(++txIndex >= MCXN947_ETH_TX_BUFFER_COUNT)
+   if(++txIndex >= MCXN94_ETH_TX_BUFFER_COUNT)
    {
       txIndex = 0;
    }
@@ -635,7 +635,7 @@ error_t mcxn947EthSendPacket(NetInterface *interface,
  * @return Error code
  **/
 
-error_t mcxn947EthReceivePacket(NetInterface *interface)
+error_t mcxn94EthReceivePacket(NetInterface *interface)
 {
    error_t error;
    size_t n;
@@ -654,7 +654,7 @@ error_t mcxn947EthReceivePacket(NetInterface *interface)
             //Retrieve the length of the frame
             n = rxDmaDesc[rxIndex].rdes3 & ENET_RDES3_PL;
             //Limit the number of data to read
-            n = MIN(n, MCXN947_ETH_RX_BUFFER_SIZE);
+            n = MIN(n, MCXN94_ETH_RX_BUFFER_SIZE);
 
             //Additional options can be passed to the stack along with the packet
             ancillary = NET_DEFAULT_RX_ANCILLARY;
@@ -683,7 +683,7 @@ error_t mcxn947EthReceivePacket(NetInterface *interface)
       rxDmaDesc[rxIndex].rdes3 = ENET_RDES3_OWN | ENET_RDES3_IOC | ENET_RDES3_BUF1V;
 
       //Increment index and wrap around if necessary
-      if(++rxIndex >= MCXN947_ETH_RX_BUFFER_COUNT)
+      if(++rxIndex >= MCXN94_ETH_RX_BUFFER_COUNT)
       {
          rxIndex = 0;
       }
@@ -710,7 +710,7 @@ error_t mcxn947EthReceivePacket(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxn947EthUpdateMacAddrFilter(NetInterface *interface)
+error_t mcxn94EthUpdateMacAddrFilter(NetInterface *interface)
 {
    uint_t i;
    bool_t acceptMulticast;
@@ -760,7 +760,7 @@ error_t mcxn947EthUpdateMacAddrFilter(NetInterface *interface)
  * @return Error code
  **/
 
-error_t mcxn947EthUpdateMacConfig(NetInterface *interface)
+error_t mcxn94EthUpdateMacConfig(NetInterface *interface)
 {
    uint32_t config;
 
@@ -803,7 +803,7 @@ error_t mcxn947EthUpdateMacConfig(NetInterface *interface)
  * @param[in] data Register value
  **/
 
-void mcxn947EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
+void mcxn94EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr, uint16_t data)
 {
    uint32_t temp;
@@ -846,7 +846,7 @@ void mcxn947EthWritePhyReg(uint8_t opcode, uint8_t phyAddr,
  * @return Register value
  **/
 
-uint16_t mcxn947EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
+uint16_t mcxn94EthReadPhyReg(uint8_t opcode, uint8_t phyAddr,
    uint8_t regAddr)
 {
    uint16_t data;

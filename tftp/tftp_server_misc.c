@@ -25,7 +25,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @author Oryx Embedded SARL (www.oryx-embedded.com)
- * @version 2.6.2
+ * @version 2.6.4
  **/
 
 //Switch to the appropriate trace level
@@ -67,12 +67,12 @@ void tftpServerTick(TftpServerContext *context)
          connection->state == TFTP_STATE_READ_COMPLETE)
       {
          //Check current time
-         if(timeCompare(time, connection->timestamp + TFTP_SERVER_TIMEOUT) >= 0)
+         if((time - connection->timestamp) >= TFTP_SERVER_TIMEOUT)
          {
             //Handle retransmissions
             if(connection->retransmitCount < TFTP_SERVER_MAX_RETRIES)
             {
-               //Retransmit last packet
+               //Retransmit the last packet
                tftpServerRetransmitPacket(connection);
 
                //Save the time at which the packet was sent
@@ -89,9 +89,10 @@ void tftpServerTick(TftpServerContext *context)
       }
       else if(connection->state == TFTP_STATE_WRITE_COMPLETE)
       {
-         //The host sending the final ACK will wait for a while before terminating
-         //in order to retransmit the final ACK if it has been lost
-         if(timeCompare(time, connection->timestamp + TFTP_SERVER_FINAL_DELAY) >= 0)
+         //The host sending the final ACK will wait for a while before
+         //terminating in order to retransmit the final ACK if it has been
+         //lost (refer to RFC 1350, section 6)
+         if((time - connection->timestamp) >= TFTP_SERVER_FINAL_DELAY)
          {
             //Close connection
             tftpServerCloseConnection(connection);
@@ -102,19 +103,60 @@ void tftpServerTick(TftpServerContext *context)
 
 
 /**
- * @brief Create client connection
+ * @brief Find a connection that matches a given client
  * @param[in] context Pointer to the TFTP server context
+ * @param[in] interface Network interface
+ * @param[in] clientIpAddr IP address of the client
+ * @param[in] clientPort Port number used by the client
+ * @return Pointer to the matching connection, if any
+ **/
+
+TftpClientConnection *tftpServerFindConnection(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort)
+{
+   uint_t i;
+   TftpClientConnection *connection;
+
+   //Loop through the connection table
+   for(i = 0; i < TFTP_SERVER_MAX_CONNECTIONS; i++)
+   {
+      //Point to the current entry
+      connection = &context->connection[i];
+
+      //Check the state of the current connection
+      if(connection->state != TFTP_STATE_CLOSED)
+      {
+         //Matching connection found?
+         if(connection->interface == interface &&
+            ipCompAddr(&connection->clientIpAddr, clientIpAddr) &&
+            connection->clientPort == clientPort)
+         {
+            return connection;
+         }
+      }
+   }
+
+   //No matching connection found
+   return NULL;
+}
+
+
+/**
+ * @brief Create a new connection
+ * @param[in] context Pointer to the TFTP server context
+ * @param[in] interface Network interface to be used
  * @param[in] clientIpAddr IP address of the client
  * @param[in] clientPort Port number used by the client
  * @return Pointer to the structure describing the connection
  **/
 
 TftpClientConnection *tftpServerOpenConnection(TftpServerContext *context,
-   const IpAddr *clientIpAddr, uint16_t clientPort)
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort)
 {
    error_t error;
    uint_t i;
    systime_t time;
+   Socket *socket;
    TftpClientConnection *connection;
    TftpClientConnection *oldestConnection;
 
@@ -162,58 +204,65 @@ TftpClientConnection *tftpServerOpenConnection(TftpServerContext *context,
       connection = oldestConnection;
    }
 
-   //Failed to create a new connection?
-   if(connection == NULL)
-      return NULL;
-
-   //Clear the structure describing the connection
-   osMemset(connection, 0, sizeof(TftpClientConnection));
-
-   //Open a UDP socket
-   connection->socket = socketOpenEx(context->netContext, SOCKET_TYPE_DGRAM,
-      SOCKET_IP_PROTO_UDP);
-   //Failed to open socket?
-   if(connection->socket == NULL)
-      return NULL;
-
-   //Associate the socket with the relevant interface
-   error = socketBindToInterface(connection->socket, context->interface);
-
-   //Any error to report?
-   if(error)
+   //Valid connection?
+   if(connection != NULL)
    {
-      //Clean up side effects
-      socketClose(connection->socket);
-      connection->socket = NULL;
-      //Exit immediately
-      return NULL;
+      //Open a UDP socket
+      socket = socketOpenEx(context->netContext, SOCKET_TYPE_DGRAM,
+         SOCKET_IP_PROTO_UDP);
+
+      //Valid socket handle?
+      if(socket != NULL)
+      {
+         //Associate the socket with the relevant interface
+         error = socketBindToInterface(socket, interface);
+
+         //Check status code
+         if(!error)
+         {
+            //Connect the socket to the remote TFTP client
+            error = socketConnect(socket, clientIpAddr, clientPort);
+         }
+
+         //Check status code
+         if(!error)
+         {
+            //Clear the structure describing the connection
+            osMemset(connection, 0, sizeof(TftpClientConnection));
+
+            //Attach TFTP server context
+            connection->context = context;
+            //Attach socket handle
+            connection->socket = socket;
+
+            //Save client's parameters
+            connection->interface = interface;
+            connection->clientIpAddr = *clientIpAddr;
+            connection->clientPort = clientPort;
+
+            //Update connection state
+            connection->state = TFTP_STATE_OPEN;
+         }
+         else
+         {
+            //Clean up side effects
+            socketClose(socket);
+         }
+      }
+      else
+      {
+         //Failed to open socket
+         error = ERROR_OPEN_FAILED;
+      }
    }
-
-   //Connect the socket to the remote TFTP client
-   error = socketConnect(connection->socket, clientIpAddr, clientPort);
-
-   //Any error to report?
-   if(error)
-   {
-      //Clean up side effects
-      socketClose(connection->socket);
-      connection->socket = NULL;
-      //Exit immediately
-      return NULL;
-   }
-
-   //Attach TFTP server context
-   connection->context = context;
-   //Update connection state
-   connection->state = TFTP_STATE_OPEN;
 
    //Pointer to the structure describing the connection
-   return connection;
+   return (error == NO_ERROR) ? connection : NULL;
 }
 
 
 /**
- * @brief Close client connection
+ * @brief Close connection
  * @param[in] connection Pointer to the client connection
  **/
 
@@ -261,48 +310,49 @@ void tftpServerCloseConnection(TftpClientConnection *connection)
 void tftpServerAcceptRequest(TftpServerContext *context)
 {
    error_t error;
-   size_t length;
    uint16_t opcode;
-   IpAddr clientIpAddr;
-   uint16_t clientPort;
+   SocketMsg msg;
+
+   //Point to the receive buffer
+   msg = SOCKET_DEFAULT_MSG;
+   msg.data = context->packet;
+   msg.size = TFTP_SERVER_MAX_PACKET_SIZE;
 
    //Read incoming TFTP packet
-   error = socketReceiveFrom(context->socket, &clientIpAddr, &clientPort,
-      context->packet, TFTP_SERVER_MAX_PACKET_SIZE, &length, 0);
+   error = socketReceiveMsg(context->socket, &msg, 0);
 
-   //Failed to read packet?
-   if(error)
-      return;
-
-   //Debug message
-   TRACE_INFO("TFTP Server: Accepting connection from %s port %" PRIu16 "...\r\n",
-      ipAddrToString(&clientIpAddr, NULL), clientPort);
-
-   //Sanity check
-   if(length < sizeof(uint16_t))
-      return;
-
-   //Retrieve TFTP packet type
-   opcode = LOAD16BE(context->packet);
-
-   //Read request received?
-   if(opcode == TFTP_OPCODE_RRQ)
+   //Check status code
+   if(!error)
    {
-      //Process RRQ packet
-      tftpServerProcessRrqPacket(context, &clientIpAddr,
-         clientPort, (TftpRrqPacket *) context->packet, length);
-   }
-   //Write request received?
-   else if(opcode == TFTP_OPCODE_WRQ)
-   {
-      //Process WRQ packet
-      tftpServerProcessWrqPacket(context, &clientIpAddr,
-         clientPort, (TftpWrqPacket *) context->packet, length);
-   }
-   //Invalid request received?
-   else
-   {
-      //Discard incoming packet
+      //Make sure the length of the packet is acceptable
+      if(msg.length >= sizeof(uint16_t))
+      {
+         //Debug message
+         TRACE_INFO("TFTP Server: Accepting connection from %s port %" PRIu16 "...\r\n",
+            ipAddrToString(&msg.srcIpAddr, NULL), msg.srcPort);
+
+         //The TFTP header consists of a 2 byte opcode field which indicates
+         //the packet's type (refer to RFC 1350, section 3)
+         opcode = LOAD16BE(context->packet);
+
+         //Check packet type
+         if(opcode == TFTP_OPCODE_RRQ)
+         {
+            //Process RRQ packet
+            tftpServerProcessRrqPacket(context, msg.interface, &msg.srcIpAddr,
+               msg.srcPort, (TftpRrqPacket *) context->packet, msg.length);
+         }
+         else if(opcode == TFTP_OPCODE_WRQ)
+         {
+            //Process WRQ packet
+            tftpServerProcessWrqPacket(context, msg.interface, &msg.srcIpAddr,
+               msg.srcPort, (TftpWrqPacket *) context->packet, msg.length);
+         }
+         else
+         {
+            //Discard incoming packet
+         }
+      }
    }
 }
 
@@ -326,42 +376,40 @@ void tftpServerProcessPacket(TftpServerContext *context,
    error = socketReceiveFrom(connection->socket, &clientIpAddr, &clientPort,
       context->packet, TFTP_SERVER_MAX_PACKET_SIZE, &length, 0);
 
-   //Failed to read packet?
-   if(error)
-      return;
+   //Check status code
+   if(!error)
+   {
+      //Make sure the length of the packet is acceptable
+      if(length >= sizeof(uint16_t))
+      {
+         //The TFTP header consists of a 2 byte opcode field which indicates
+         //the packet's type (refer to RFC 1350, section 3)
+         opcode = LOAD16BE(context->packet);
 
-   //Sanity check
-   if(length < sizeof(uint16_t))
-      return;
-
-   //Retrieve TFTP packet type
-   opcode = LOAD16BE(context->packet);
-
-   //Data packet received?
-   if(opcode == TFTP_OPCODE_DATA)
-   {
-      //Process DATA packet
-      tftpServerProcessDataPacket(connection,
-         (TftpDataPacket *) context->packet, length);
-   }
-   //Acknowledgment packet received?
-   else if(opcode == TFTP_OPCODE_ACK)
-   {
-      //Process ACK packet
-      tftpServerProcessAckPacket(connection,
-         (TftpAckPacket *) context->packet, length);
-   }
-   //Error packet received?
-   else if(opcode == TFTP_OPCODE_ERROR)
-   {
-      //Process ERROR packet
-      tftpServerProcessErrorPacket(connection,
-         (TftpErrorPacket *) context->packet, length);
-   }
-   //Invalid packet received?
-   else
-   {
-      //Discard incoming packet
+         //Check packet type
+         if(opcode == TFTP_OPCODE_DATA)
+         {
+            //Process DATA packet
+            tftpServerProcessDataPacket(connection,
+               (TftpDataPacket *) context->packet, length);
+         }
+         else if(opcode == TFTP_OPCODE_ACK)
+         {
+            //Process ACK packet
+            tftpServerProcessAckPacket(connection,
+               (TftpAckPacket *) context->packet, length);
+         }
+         else if(opcode == TFTP_OPCODE_ERROR)
+         {
+            //Process ERROR packet
+            tftpServerProcessErrorPacket(connection,
+               (TftpErrorPacket *) context->packet, length);
+         }
+         else
+         {
+            //Discard incoming packet
+         }
+      }
    }
 }
 
@@ -369,14 +417,16 @@ void tftpServerProcessPacket(TftpServerContext *context,
 /**
  * @brief Process incoming RRQ packet
  * @param[in] context Pointer to the TFTP server context
+ * @param[in] interface Network interface on which the packet was received
  * @param[in] clientIpAddr IP address of the client
  * @param[in] clientPort Port number used by the client
  * @param[in] rrqPacket Pointer to the RRQ packet
  * @param[in] length Length of the packet, in bytes
  **/
 
-void tftpServerProcessRrqPacket(TftpServerContext *context, const IpAddr *clientIpAddr,
-   uint16_t clientPort, const TftpRrqPacket *rrqPacket, size_t length)
+void tftpServerProcessRrqPacket(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort,
+   const TftpRrqPacket *rrqPacket, size_t length)
 {
    const char_t *mode;
    TftpClientConnection *connection;
@@ -414,45 +464,60 @@ void tftpServerProcessRrqPacket(TftpServerContext *context, const IpAddr *client
    TRACE_DEBUG("  Filename = %s\r\n", rrqPacket->filename);
    TRACE_DEBUG("  Mode = %s\r\n", mode);
 
-   //Create a new connection
-   connection = tftpServerOpenConnection(context, clientIpAddr, clientPort);
+   //Check whether a matching connection exists
+   connection = tftpServerFindConnection(context, interface, clientIpAddr,
+      clientPort);
 
-   //Any error to report?
-   if(connection == NULL)
-      return;
-
-   //Open the specified file for reading
-   if(context->openFileCallback != NULL)
+   //Matching connection found?
+   if(connection != NULL)
    {
-      //Invoke user callback function
-      connection->file = context->openFileCallback(rrqPacket->filename, mode,
-         FALSE);
+      //Retransmit the first DATA packet
+      tftpServerRetransmitPacket(connection);
    }
    else
    {
-      //No callback function defined
-      connection->file = NULL;
-   }
+      //Create a new connection
+      connection = tftpServerOpenConnection(context, interface, clientIpAddr,
+         clientPort);
 
-   //Check if the file was successfully opened
-   if(connection->file != NULL)
-   {
-      //The read operation is in progress
-      connection->state = TFTP_STATE_READING;
-      //Initialize block number
-      connection->block = 1;
+      //Valid connection?
+      if(connection != NULL)
+      {
+         //Open the specified file for reading
+         if(context->openFileCallback != NULL)
+         {
+            //Invoke user callback function
+            connection->file = context->openFileCallback(rrqPacket->filename,
+               mode, FALSE);
+         }
+         else
+         {
+            //No callback function defined
+            connection->file = NULL;
+         }
 
-      //Send the first DATA packet
-      tftpServerSendDataPacket(connection);
-   }
-   else
-   {
-      //If the reply is an error packet, then the request has been denied
-      tftpServerSendErrorPacket(connection, TFTP_ERROR_NOT_DEFINED,
-         "Failed to open file");
+         //Check if the file was successfully opened
+         if(connection->file != NULL)
+         {
+            //The read operation is in progress
+            connection->state = TFTP_STATE_READING;
+            //Initialize block number
+            connection->block = 1;
 
-      //Close the connection
-      tftpServerCloseConnection(connection);
+            //Send the first DATA packet
+            tftpServerSendDataPacket(connection);
+         }
+         else
+         {
+            //If the reply is an error packet, then the request has been denied
+            //refer to RFC 1350, section 4)
+            tftpServerSendErrorPacket(connection, TFTP_ERROR_NOT_DEFINED,
+               "Failed to open file");
+
+            //Close the connection
+            tftpServerCloseConnection(connection);
+         }
+      }
    }
 }
 
@@ -460,14 +525,16 @@ void tftpServerProcessRrqPacket(TftpServerContext *context, const IpAddr *client
 /**
  * @brief Process incoming WRQ packet
  * @param[in] context Pointer to the TFTP server context
+ * @param[in] interface Network interface on which the packet was received
  * @param[in] clientIpAddr IP address of the client
  * @param[in] clientPort Port number used by the client
  * @param[in] wrqPacket Pointer to the WRQ packet
  * @param[in] length Length of the packet, in bytes
  **/
 
-void tftpServerProcessWrqPacket(TftpServerContext *context, const IpAddr *clientIpAddr,
-   uint16_t clientPort, const TftpWrqPacket *wrqPacket, size_t length)
+void tftpServerProcessWrqPacket(TftpServerContext *context,
+   NetInterface *interface, const IpAddr *clientIpAddr, uint16_t clientPort,
+   const TftpWrqPacket *wrqPacket, size_t length)
 {
    const char_t *mode;
    TftpClientConnection *connection;
@@ -505,49 +572,64 @@ void tftpServerProcessWrqPacket(TftpServerContext *context, const IpAddr *client
    TRACE_DEBUG("  Filename = %s\r\n", wrqPacket->filename);
    TRACE_DEBUG("  Mode = %s\r\n", mode);
 
-   //Create a new connection
-   connection = tftpServerOpenConnection(context, clientIpAddr, clientPort);
+   //Check whether a matching connection exists
+   connection = tftpServerFindConnection(context, interface, clientIpAddr,
+      clientPort);
 
-   //Any error to report?
-   if(connection == NULL)
-      return;
-
-   //Open the specified file for writing
-   if(context->openFileCallback != NULL)
+   //Matching connection found?
+   if(connection != NULL)
    {
-      //Invoke user callback function
-      connection->file = context->openFileCallback(wrqPacket->filename, mode,
-         TRUE);
+      //Retransmit the ACK packet
+      tftpServerRetransmitPacket(connection);
    }
    else
    {
-      //No callback function defined
-      connection->file = NULL;
-   }
+      //Create a new connection
+      connection = tftpServerOpenConnection(context, interface, clientIpAddr,
+         clientPort);
 
-   //Check if the file was successfully opened
-   if(connection->file != NULL)
-   {
-      //The write operation is in progress
-      connection->state = TFTP_STATE_WRITING;
-      //Initialize block number
-      connection->block = 0;
+      //Valid connection?
+      if(connection != NULL)
+      {
+         //Open the specified file for writing
+         if(context->openFileCallback != NULL)
+         {
+            //Invoke user callback function
+            connection->file = context->openFileCallback(wrqPacket->filename,
+               mode, TRUE);
+         }
+         else
+         {
+            //No callback function defined
+            connection->file = NULL;
+         }
 
-      //The positive response to a write request is an acknowledgment
-      //packet with block number zero
-      tftpServerSendAckPacket(connection);
+         //Check if the file was successfully opened
+         if(connection->file != NULL)
+         {
+            //The write operation is in progress
+            connection->state = TFTP_STATE_WRITING;
+            //Initialize block number
+            connection->block = 0;
 
-      //Increment block number
-      connection->block++;
-   }
-   else
-   {
-      //If the reply is an error packet, then the request has been denied
-      tftpServerSendErrorPacket(connection, TFTP_ERROR_NOT_DEFINED,
-         "Failed to open file");
+            //The positive response to a write request is an acknowledgment
+            //packet with block number zero
+            tftpServerSendAckPacket(connection);
 
-      //Close the connection
-      tftpServerCloseConnection(connection);
+            //Increment block number
+            connection->block++;
+         }
+         else
+         {
+            //If the reply is an error packet, then the request has been denied
+            //refer to RFC 1350, section 4)
+            tftpServerSendErrorPacket(connection, TFTP_ERROR_NOT_DEFINED,
+               "Failed to open file");
+
+            //Close the connection
+            tftpServerCloseConnection(connection);
+         }
+      }
    }
 }
 
@@ -644,14 +726,14 @@ void tftpServerProcessDataPacket(TftpClientConnection *connection,
       }
       else
       {
-         //Retransmit ACK packet
+         //Retransmit the ACK packet
          tftpServerRetransmitPacket(connection);
       }
    }
    else if(connection->state == TFTP_STATE_WRITE_COMPLETE)
    {
-      //The acknowledger will know that the ACK has been lost if it
-      //receives the final DATA packet again
+      //The acknowledger will know that the ACK has been lost if it receives
+      //the final DATA packet again (refer to RFC 1350, section 6)
       tftpServerRetransmitPacket(connection);
    }
 }
@@ -702,9 +784,10 @@ void tftpServerProcessAckPacket(TftpClientConnection *connection,
       //Make sure the ACK is not a duplicate
       if(ntohs(ackPacket->block) == connection->block)
       {
-         //The host sending the last DATA must retransmit it until the packet is
-         //acknowledged or the sending host times out. If the response is an ACK,
-         //the transmission was completed successfully
+         //The host sending the last DATA must retransmit it until the packet
+         //is acknowledged or the sending host times out. If the response is an
+         //ACK, the transmission was completed successfully (refer to RFC 1350,
+         //section 6)
          tftpServerCloseConnection(connection);
       }
    }
