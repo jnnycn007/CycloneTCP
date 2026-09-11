@@ -53,107 +53,79 @@ void dnsDumpMessage(const DnsHeader *message, size_t length)
 {
    uint_t i;
    size_t pos;
-   char_t *buffer;
 
-   //Make sure the DNS message is valid
-   if(length >= sizeof(DnsHeader))
+   //Malformed DNS message?
+   if(length < sizeof(DnsHeader))
+      return;
+
+   //Dump DNS message header
+   TRACE_DEBUG("  Identifier (ID) = %" PRIu16 "\r\n", ntohs(message->id));
+   TRACE_DEBUG("  Query Response (QR) = %" PRIu8 "\r\n", message->qr);
+   TRACE_DEBUG("  Opcode (OPCODE) = %" PRIu8 "\r\n", message->opcode);
+   TRACE_DEBUG("  Authoritative Answer (AA) = %" PRIu8 "\r\n", message->aa);
+   TRACE_DEBUG("  TrunCation (TC) = %" PRIu8 "\r\n", message->tc);
+   TRACE_DEBUG("  Recursion Desired (RD) = %" PRIu8 "\r\n", message->rd);
+   TRACE_DEBUG("  Recursion Available (RA) = %" PRIu8 "\r\n", message->ra);
+   TRACE_DEBUG("  Reserved (Z) = %" PRIu8 "\r\n", message->z);
+   TRACE_DEBUG("  Response Code (RCODE) = %" PRIu8 "\r\n", message->rcode);
+   TRACE_DEBUG("  Question Count (QDCOUNT) = %" PRIu8 "\r\n", ntohs(message->qdcount));
+   TRACE_DEBUG("  Answer Count (ANCOUNT) = %" PRIu8 "\r\n", ntohs(message->ancount));
+   TRACE_DEBUG("  Name Server Count (NSCOUNT) = %" PRIu8 "\r\n", ntohs(message->nscount));
+   TRACE_DEBUG("  Additional Record Count (ARCOUNT) = %" PRIu8 "\r\n", ntohs(message->arcount));
+
+   //Point to the first question
+   pos = sizeof(DnsHeader);
+
+   //Debug message
+   TRACE_DEBUG("  Questions\r\n");
+
+   //Parse questions
+   for(i = 0; i < ntohs(message->qdcount); i++)
    {
-      //Dump DNS message header
-      TRACE_DEBUG("  Identifier (ID) = %" PRIu16 "\r\n", ntohs(message->id));
-      TRACE_DEBUG("  Query Response (QR) = %" PRIu8 "\r\n", message->qr);
-      TRACE_DEBUG("  Opcode (OPCODE) = %" PRIu8 "\r\n", message->opcode);
-      TRACE_DEBUG("  Authoritative Answer (AA) = %" PRIu8 "\r\n", message->aa);
-      TRACE_DEBUG("  TrunCation (TC) = %" PRIu8 "\r\n", message->tc);
-      TRACE_DEBUG("  Recursion Desired (RD) = %" PRIu8 "\r\n", message->rd);
-      TRACE_DEBUG("  Recursion Available (RA) = %" PRIu8 "\r\n", message->ra);
-      TRACE_DEBUG("  Reserved (Z) = %" PRIu8 "\r\n", message->z);
-      TRACE_DEBUG("  Response Code (RCODE) = %" PRIu8 "\r\n", message->rcode);
-      TRACE_DEBUG("  Question Count (QDCOUNT) = %" PRIu8 "\r\n", ntohs(message->qdcount));
-      TRACE_DEBUG("  Answer Count (ANCOUNT) = %" PRIu8 "\r\n", ntohs(message->ancount));
-      TRACE_DEBUG("  Name Server Count (NSCOUNT) = %" PRIu8 "\r\n", ntohs(message->nscount));
-      TRACE_DEBUG("  Additional Record Count (ARCOUNT) = %" PRIu8 "\r\n", ntohs(message->arcount));
-
-      //Allocate a memory buffer to holds domain names
-      buffer = memPoolAlloc(DNS_NAME_MAX_SIZE);
-      //Failed to allocate memory
-      if(buffer == NULL)
+      //Dump current question
+      pos = dnsDumpQuestion(message, length, pos);
+      //Any error to report?
+      if(pos == 0)
          return;
+   }
 
-      //Point to the first question
-      pos = sizeof(DnsHeader);
+   //Debug message
+   TRACE_DEBUG("  Answer RRs\r\n");
 
-      //Start of exception handling block
-      do
-      {
-         //Debug message
-         TRACE_DEBUG("  Questions\r\n");
+   //Parse answer resource records
+   for(i = 0; i < ntohs(message->ancount); i++)
+   {
+      //Dump current resource record
+      pos = dnsDumpResourceRecord(message, length, pos);
+      //Any error to report?
+      if(pos == 0)
+         return;
+   }
 
-         //Parse questions
-         for(i = 0; i < ntohs(message->qdcount); i++)
-         {
-            //Dump current question
-            pos = dnsDumpQuestion(message, length, pos, buffer);
-            //Any error to report?
-            if(!pos)
-               break;
-         }
+   //Debug message
+   TRACE_DEBUG("  Authority RRs\r\n");
 
-         //Parsing error?
-         if(!pos)
-            break;
+   //Parse authority resource records
+   for(i = 0; i < ntohs(message->nscount); i++)
+   {
+      //Dump current resource record
+      pos = dnsDumpResourceRecord(message, length, pos);
+      //Any error to report?
+      if(pos == 0)
+         return;
+   }
 
-         //Debug message
-         TRACE_DEBUG("  Answer RRs\r\n");
+   //Debug message
+   TRACE_DEBUG("  Additional RRs\r\n");
 
-         //Parse answer resource records
-         for(i = 0; i < ntohs(message->ancount); i++)
-         {
-            //Dump current resource record
-            pos = dnsDumpResourceRecord(message, length, pos, buffer);
-            //Any error to report?
-            if(!pos)
-               break;
-         }
-
-         //Parsing error?
-         if(!pos)
-            break;
-
-         //Debug message
-         TRACE_DEBUG("  Authority RRs\r\n");
-
-         //Parse authority resource records
-         for(i = 0; i < ntohs(message->nscount); i++)
-         {
-            //Dump current resource record
-            pos = dnsDumpResourceRecord(message, length, pos, buffer);
-            //Any error to report?
-            if(!pos)
-               break;
-         }
-
-         //Parsing error?
-         if(!pos)
-            break;
-
-         //Debug message
-         TRACE_DEBUG("  Additional RRs\r\n");
-
-         //Parse additional resource records
-         for(i = 0; i < ntohs(message->arcount); i++)
-         {
-            //Dump current resource record
-            pos = dnsDumpResourceRecord(message, length, pos, buffer);
-            //Any error to report?
-            if(!pos)
-               break;
-         }
-
-         //End of exception handling block
-      } while(0);
-
-      //Free previously allocated memory
-      memPoolFree(buffer);
+   //Parse additional resource records
+   for(i = 0; i < ntohs(message->arcount); i++)
+   {
+      //Dump current resource record
+      pos = dnsDumpResourceRecord(message, length, pos);
+      //Any error to report?
+      if(pos == 0)
+         return;
    }
 }
 
@@ -163,19 +135,18 @@ void dnsDumpMessage(const DnsHeader *message, size_t length)
  * @param[in] message Pointer to the DNS message
  * @param[in] length Length of the DNS message
  * @param[in] pos Offset of the question to decode
- * @param[in] buffer Memory buffer to holds domain names
  * @return Offset to the next question
  **/
 
-size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos, char_t *buffer)
+size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos)
 {
    size_t n;
    DnsQuestion *question;
 
    //Parse domain name
-   n = dnsParseName(message, length, pos, buffer, 0);
+   n = dnsParseName(message, length, pos, NULL, 0);
    //Invalid name?
-   if(!n)
+   if(n == 0)
       return 0;
 
    //Make sure the DNS question is valid
@@ -190,17 +161,35 @@ size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos, char
    {
 #if (NBNS_CLIENT_SUPPORT == ENABLED || NBNS_RESPONDER_SUPPORT == ENABLED)
 #if (IPV4_SUPPORT == ENABLED)
+      char_t buffer[16];
+
       //Decode NetBIOS name
       pos = nbnsParseName((NbnsHeader *) message, length, pos, buffer);
       //Invalid NetBIOS name?
-      if(!pos)
+      if(pos == 0)
          return 0;
+
+      //Dump Name field
+      TRACE_DEBUG("    Name (QNAME) = %s\r\n", buffer);
 #endif
 #endif
    }
+   else
+   {
+      //Debug message
+      TRACE_DEBUG("    Name (QNAME) = ");
+
+      //Dump domain name
+      pos = dnsDumpName(message, length, pos, 0);
+      //Invalid name?
+      if(pos == 0)
+         return 0;
+
+      //Terminate with a line feed
+      TRACE_DEBUG("\r\n");
+   }
 
    //Dump DNS question
-   TRACE_DEBUG("    Name (QNAME) = %s\r\n", buffer);
    TRACE_DEBUG("      Query Type (QTYPE) = %" PRIu16 "\r\n", ntohs(question->qtype));
    TRACE_DEBUG("      Query Class (QCLASS) = %" PRIu16 "\r\n", ntohs(question->qclass));
 
@@ -216,20 +205,20 @@ size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos, char
  * @param[in] message Pointer to the DNS message
  * @param[in] length Length of the DNS message
  * @param[in] pos Offset of the question to decode
- * @param[in] buffer Memory buffer to holds domain names
  * @return Offset to the next question
  **/
 
-size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos, char_t *buffer)
+size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length,
+   size_t pos)
 {
    size_t n;
    DnsResourceRecord *record;
    DnsSrvResourceRecord *srvRecord;
 
    //Parse domain name
-   n = dnsParseName(message, length, pos, buffer, 0);
+   n = dnsParseName(message, length, pos, NULL, 0);
    //Invalid name?
-   if(!n)
+   if(n == 0)
       return 0;
 
    //Point to the corresponding entry
@@ -246,17 +235,35 @@ size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos
    {
 #if (NBNS_CLIENT_SUPPORT == ENABLED || NBNS_RESPONDER_SUPPORT == ENABLED)
 #if (IPV4_SUPPORT == ENABLED)
+      char_t buffer[16];
+
       //Decode NetBIOS name
       pos = nbnsParseName((NbnsHeader *) message, length, pos, buffer);
       //Invalid NetBIOS name?
-      if(!pos)
+      if(pos == 0)
          return 0;
+
+      //Dump Name field
+      TRACE_DEBUG("    Name (NAME) = %s\r\n", buffer);
 #endif
 #endif
    }
+   else
+   {
+      //Debug message
+      TRACE_DEBUG("    Name (NAME) = ");
+
+      //Dump domain name
+      pos = dnsDumpName(message, length, pos, 0);
+      //Invalid name?
+      if(pos == 0)
+         return 0;
+
+      //Terminate with a line feed
+      TRACE_DEBUG("\r\n");
+   }
 
    //Dump DNS resource record
-   TRACE_DEBUG("    Name (NAME) = %s\r\n", buffer);
    TRACE_DEBUG("      Query Type (TYPE) = %" PRIu16 "\r\n", ntohs(record->rtype));
    TRACE_DEBUG("      Query Class (CLASS) = %" PRIu16 "\r\n", ntohs(record->rclass));
    TRACE_DEBUG("      Time-To-Live (TTL) = %" PRIu32 "\r\n", ntohl(record->ttl));
@@ -291,14 +298,17 @@ size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos
 #endif
    if(ntohs(record->rtype) == DNS_RR_TYPE_PTR)
    {
-      //Decode domain name
-      pos = dnsParseName(message, length, n + sizeof(DnsResourceRecord), buffer, 0);
+      //Dump SRV resource record
+      TRACE_DEBUG("      Domain Name (PTRDNAME) = ");
+
+      //Dump domain name
+      pos = dnsDumpName(message, length, n + sizeof(DnsResourceRecord), 0);
       //Invalid domain name?
-      if(!pos)
+      if(pos == 0)
          return 0;
 
-      //Dump name
-      TRACE_DEBUG("      Domain Name (PTRDNAME) = %s\r\n", buffer);
+      //Terminate with a line feed
+      TRACE_DEBUG("\r\n");
    }
    else if(ntohs(record->rtype) == DNS_RR_TYPE_SRV)
    {
@@ -309,15 +319,16 @@ size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos
       TRACE_DEBUG("      Priority = %" PRIu16 "\r\n", ntohs(srvRecord->priority));
       TRACE_DEBUG("      Weight = %" PRIu16 "\r\n", ntohs(srvRecord->weight));
       TRACE_DEBUG("      Port = %" PRIu16 "\r\n", ntohs(srvRecord->port));
+      TRACE_DEBUG("      Target = ");
 
-      //Decode target name
-      pos = dnsParseName(message, length, n + sizeof(DnsSrvResourceRecord), buffer, 0);
+      //Dump target name
+      pos = dnsDumpName(message, length, n + sizeof(DnsSrvResourceRecord), 0);
       //Invalid domain name?
-      if(!pos)
+      if(pos == 0)
          return 0;
-
-      //Dump name
-      TRACE_DEBUG("      Target = %s\r\n", buffer);
+      
+      //Terminate with a line feed
+      TRACE_DEBUG("\r\n");
    }
    else
    {
@@ -328,8 +339,97 @@ size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos
 
    //Point to the next resource record
    n += sizeof(DnsResourceRecord) + ntohs(record->rdlength);
+
    //Return the current position
    return n;
+}
+
+
+/**
+ * @brief Dump a domain name that uses the DNS name encoding
+ * @param[in] message Pointer to the DNS message
+ * @param[in] length Length of the DNS message
+ * @param[in] pos Offset of the name to decode
+ * @param[in] level Current level of recursion
+ * @return The position of the resource record that immediately follows the domain name
+ **/
+
+size_t dnsDumpName(const DnsHeader *message, size_t length, size_t pos,
+   uint_t level)
+{
+   size_t n;
+   size_t pointer;
+   uint8_t *src;
+
+   //Recursion limit exceeded?
+   if(level >= DNS_NAME_MAX_RECURSION)
+      return 0;
+
+   //Cast the input DNS message to byte array
+   src = (uint8_t *) message;
+
+   //Parse encoded domain name
+   while(pos >= sizeof(DnsHeader) && pos < length)
+   {
+      //Check label length
+      if(src[pos] == 0)
+      {
+         //Return the position of the resource record that is immediately
+         //following the domain name
+         return (pos + 1);
+      }
+      else if(src[pos] >= DNS_COMPRESSION_TAG)
+      {
+         //Malformed DNS message?
+         if((pos + 1) >= length)
+            return 0;
+
+         //Read the most significant byte of the pointer
+         pointer = (src[pos] & ~DNS_COMPRESSION_TAG) << 8;
+         //Read the least significant byte of the pointer
+         pointer |= src[pos + 1];
+
+         //Dump the remaining part of the domain name
+         if(!dnsDumpName(message, length, pointer, level + 1))
+         {
+            //Domain name decoding failed
+            return 0;
+         }
+
+         //Return the position of the resource record that is immediately
+         //following the domain name
+         return (pos + 2);
+      }
+      else if(src[pos] <= DNS_LABEL_MAX_SIZE)
+      {
+         //Get the length of the current label
+         n = src[pos++];
+
+         //Malformed DNS message?
+         if((pos + n) > length)
+            return 0;
+
+         //Dump label
+         for(; n > 0; n--, pos++)
+         {
+            TRACE_DEBUG("%c", src[pos]);
+         }
+
+         //Append a separator if necessary
+         if(pos < length && src[pos] != 0)
+         {
+            TRACE_DEBUG(".");
+         }
+      }
+      else
+      {
+         //Domain name decoding failed
+         return 0;
+      }
+   }
+
+   //Domain name decoding failed
+   return 0;
 }
 
 #endif

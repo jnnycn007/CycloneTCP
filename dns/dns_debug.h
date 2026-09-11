@@ -44,11 +44,17 @@ extern "C" {
 //Check current trace level
 #if (DNS_TRACE_LEVEL >= TRACE_LEVEL_DEBUG)
    void dnsDumpMessage(const DnsHeader *message, size_t length);
-   size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos, char_t *buffer);
-   size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length, size_t pos, char_t *buffer);
 #else
    #define dnsDumpMessage(message, length)
 #endif
+
+size_t dnsDumpQuestion(const DnsHeader *message, size_t length, size_t pos);
+
+size_t dnsDumpResourceRecord(const DnsHeader *message, size_t length,
+   size_t pos);
+
+size_t dnsDumpName(const DnsHeader *message, size_t length, size_t pos,
+   uint_t level);
 
 //C++ guard
 #ifdef __cplusplus
